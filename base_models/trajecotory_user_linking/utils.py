@@ -2,8 +2,8 @@ import torch
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from rawprocess import get_data_and_graph
 
+import random
 
 
 
@@ -79,50 +79,6 @@ def set_random_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
-
-def load_data(dataset, read_pkl, grid_size):
-    """[This is a function used to load data]
-
-    Args:
-        dataset ([str]): [The name of the dataset]
-        read_pkl ([bool]): [Whether to use the preprocessed data file]
-        grid_size ([int]): [Grid size of preprocessing trajectory data division]
-
-    Returns:
-        [type]: [description]
-    """
-    if read_pkl == False:
-        if dataset == "Chengdu_Sample1":
-            raw_path = './data/tul/chengdu/raw/Chengdu_Sample1.dyna'
-        if dataset == "Chengdu_Sample12":
-            raw_path = './data/tul/chengdu/raw/Chengdu_Sample12.dyna'
-        elif dataset == "Chengdu_20140803_1":
-            raw_path = './data/tul/chengdu/raw/Chengdu_20140803_1.dyna'
-        elif dataset == 'gowalla-all':
-            raw_path = './data/tul/gowalla/raw/gowalla-all.csv'
-        elif dataset == 'shenzhen-all':
-            raw_path = './data/tul/shenzhen/raw/shenzhen-all.csv'
-        elif dataset == 'geolife-all':
-            raw_path = './data/tul/geolife/raw/geolife-all.csv'
-        else:
-            print('The dataset does not exist')
-            exit()
-        return get_data_and_graph(raw_path, read_pkl, grid_size)
-    else:
-        if dataset == "Chengdu_Sample1":
-            raw_path = './data/tul/chengdu/process/Chengdu_Sample1-' + str(grid_size)+'.pkl'
-        elif dataset == 'gowalla-all':
-            raw_path = './data/tul/gowalla/process/gowalla-all-' + str(grid_size)+'.pkl'
-        elif dataset == 'shenzhen-all':
-            raw_path = './data/tul/shenzhen/process/shenzhen-all-' + str(grid_size)+'.pkl'
-        else:
-            print('The dataset does not exist')
-            exit()
-        f = open(raw_path, 'rb')
-        local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums = pickle.load(
-            f)
-        f.close()
-        return local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums
 
 
 def accuracy_1(pred, targ):

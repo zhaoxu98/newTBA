@@ -6,7 +6,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score
-from utils import EarlyStopping, load_data, accuracy_1, accuracy_5, loss_with_earlystop_plot, set_random_seed
+from rawprocess import load_data
+from utils import EarlyStopping, accuracy_1, accuracy_5, loss_with_earlystop_plot, set_random_seed
 from datasets import get_dataset, get_dataloader
 from models import MolNet, GcnNet
 from tqdm import tqdm
