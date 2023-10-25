@@ -3,5 +3,3 @@
 *.pt
 *.csv
 *.pyc
-/logs/*
-scripts/*
