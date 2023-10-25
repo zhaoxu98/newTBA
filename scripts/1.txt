@@ -1,7 +1,7 @@
-python models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 40 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
-python models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 80 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
-python models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 120 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
-python models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 200 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
+python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 40 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
+python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 80 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
+python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 120 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
+python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 200 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
 
 
 
@@ -14,5 +14,5 @@ test_loss:251.05064  acc1:0.0933  acc5:0.2076  Macro-P:0.0719  Macro-R:0.0878  M
 Total time elapsed: 984.8001s
 
 
-python models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 80 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
-python models/trajecotory_user_linking/main.py --dataset Chengdu_Sample1 --grid_size 120 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
+python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 80 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
+python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample1 --grid_size 120 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 512 --valid_batch 512 --test_batch 512 --patience 40
