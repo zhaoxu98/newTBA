@@ -414,7 +414,7 @@ def load_data(dataset, read_pkl, grid_size):
     if read_pkl == False:
         if dataset == "Chengdu_Sample1":
             raw_path = './data/tul/chengdu/raw/Chengdu_Sample1.dyna'
-        if dataset == "Chengdu_Sample12":
+        elif dataset == "Chengdu_Sample12":
             raw_path = './data/tul/chengdu/raw/Chengdu_Sample12.dyna'
         elif dataset == "Chengdu_20140803_1":
             raw_path = './data/tul/chengdu/raw/Chengdu_20140803_1.dyna'
