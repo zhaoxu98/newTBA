@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score
-from utils import EarlyStopping, load_data, accuracy_1, accuracy_5, loss_with_earlystop_plot
+from utils import EarlyStopping, load_data, accuracy_1, accuracy_5, loss_with_earlystop_plot, set_random_seed
 from datasets import get_dataset, get_dataloader
 from models import MolNet, GcnNet
 from tqdm import tqdm
@@ -290,10 +290,7 @@ def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch,
     for idx, seed in enumerate(random.sample(range(0, 1000), times)):
 
         # Fixed random seed
-        seed = 555
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
+        set_random_seed(seed)
 
         # Initialization model
         LocalGcnModel = GcnNet(grid_nums, localGcn_hidden,

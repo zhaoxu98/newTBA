@@ -67,6 +67,18 @@ class EarlyStopping:
             torch.save(model.state_dict(), './checkpoint/tul/checkpoint'+str(idx)+'.pt')
         self.val_loss_min = val_loss
 
+def set_random_seed(seed):
+    """
+    重置随机数种子
+
+    Args:
+        seed(int): 种子数
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
 
 def load_data(dataset, read_pkl, grid_size):
     """[This is a function used to load data]
