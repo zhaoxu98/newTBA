@@ -1,8 +1,10 @@
 
 python -u base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 40 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 32 --valid_batch 32 --test_batch 32 --patience 40 >> /hpc2hdd/home/zxu674/newTBA/logs/original/1.txt 2>&1 &
-python -u base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 80 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 2048 --valid_batch 2048 --test_batch 2048 --patience 40 >> /hpc2hdd/home/zxu674/newTBA/logs/original/2.txt 2>&1 &
-python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 120 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 2048 --valid_batch 2048 --test_batch 2048 --patience 40 >> /hpc2hdd/home/zxu674/newTBA/logs/original/3.txt 2>&1 &
-python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 200 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 2048 --valid_batch 2048 --test_batch 2048 --patience 40 >> /hpc2hdd/home/zxu674/newTBA/logs/original/4.txt 2>&1 &
+
+python -u base_models/trajecotory_user_linking/main.py --dataset chengdu_0304_u100 --grid_size 40 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 32 --valid_batch 32 --test_batch 32 --patience 40 >> /hpc2hdd/home/zxu674/newTBA/logs/original/1026010.txt 2>&1 &
+python -u base_models/trajecotory_user_linking/main.py --dataset chengdu_0304_u200 --grid_size 40 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 32 --valid_batch 32 --test_batch 32 --patience 40 >> /hpc2hdd/home/zxu674/newTBA/logs/original/1026020.txt 2>&1 &
+python -u base_models/trajecotory_user_linking/main.py --dataset chengdu_0304_u300 --grid_size 40 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 32 --valid_batch 32 --test_batch 32 --patience 40 >> /hpc2hdd/home/zxu674/newTBA/logs/original/1026030.txt 2>&1 &
+python -u base_models/trajecotory_user_linking/main.py --dataset chengdu_0304_u400 --grid_size 40 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 32 --valid_batch 32 --test_batch 32 --patience 40 >> /hpc2hdd/home/zxu674/newTBA/logs/original/1026040.txt 2>&1 &
 
 
 
