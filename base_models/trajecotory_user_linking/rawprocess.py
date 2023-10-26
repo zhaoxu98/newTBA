@@ -12,7 +12,7 @@ from math import radians, cos, sin, asin, atan2, sqrt, degrees
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
 
-
+global_feature = np.zeros(1)
 def haversine_distance(lon1, lat1, lon2, lat2):
     """[This function is used to calculate the distance between two GPS points (unit: meter)]
 
@@ -200,7 +200,8 @@ def test4(traj_list, global_feature):
             global_edge_list.append([node1, node2, edge_weights[idx]])
     return global_edge_list, edge_weight_max
 
-def compute_weights_and_edges_chunk(start, end, global_feature):
+def compute_weights_and_edges_chunk(start, end):
+    global global_feature
     edge_list = []
     local_max = float('-inf')
     for node1 in range(start, end):
@@ -218,15 +219,16 @@ def compute_weights_and_edges_chunk(start, end, global_feature):
     
     return edge_list, local_max
 
-def test4_parallel_chunks(traj_list, global_feature, chunk_size=100):
+def test4_parallel_chunks(traj_list, chunk_size=100):
+    global global_feature
     n = len(traj_list)
     edge_weight_max = float('-inf')
 
     global_edge_list = []
-    tasks = [(i, min(i+chunk_size, n-1), global_feature) for i in range(0, n-1, chunk_size)]
+    tasks = [(i, min(i+chunk_size, n-1)) for i in range(0, n-1, chunk_size)]
 
     with ProcessPoolExecutor() as executor:
-        futures = [executor.submit(compute_weights_and_edges_chunk, start, end, global_feature) for start, end, _ in tasks]
+        futures = [executor.submit(compute_weights_and_edges_chunk, start, end) for start, end in tasks]
         
         for future in tqdm(futures):
             edges, max_weight = future.result()
@@ -277,7 +279,7 @@ def generate_graph(grid_list, traj_list, user_list, user_traj_dict, user_traj_tr
     #     nx.to_scipy_sparse_matrix(local_graph, dtype=np.float)))
     local_adj = sparse_mx_to_torch_sparse_tensor(preprocess_adj(
         nx.to_scipy_sparse_matrix(local_graph, dtype=np.float32)))
-
+    global global_feature
     global_feature = np.zeros((len(traj_list)+len(user_list), len(grid_list)))
     for key in user_traj_dict:
         sum_feature = np.zeros((1, len(grid_list)))
@@ -302,7 +304,7 @@ def generate_graph(grid_list, traj_list, user_list, user_traj_dict, user_traj_tr
     #         if edge_weight:
     #             global_edge_list.append([node1, node2, edge_weight])
 
-    global_edge_list, edge_weight_max = test4_parallel_chunks(traj_list, global_feature, chunk_size=100)
+    global_edge_list, edge_weight_max = test4_parallel_chunks(traj_list, chunk_size=400)
     # global_edge_list, edge_weight_max = test4(traj_list, global_feature)
     for key in user_traj_train:
         node1 = len(traj_list) + key
