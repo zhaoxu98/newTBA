@@ -418,12 +418,14 @@ def load_data(dataset, read_pkl, grid_size):
             raw_path = './data/tul/chengdu/raw/Chengdu_Sample12.dyna'
         elif dataset == "Chengdu_20140803_1":
             raw_path = './data/tul/chengdu/raw/Chengdu_20140803_1.dyna'
-        elif dataset == 'gowalla-all':
-            raw_path = './data/tul/gowalla/raw/gowalla-all.csv'
-        elif dataset == 'shenzhen-all':
-            raw_path = './data/tul/shenzhen/raw/shenzhen-all.csv'
-        elif dataset == 'geolife-all':
-            raw_path = './data/tul/geolife/raw/geolife-all.csv'
+        elif dataset == 'chengdu_0304_u100':
+            raw_path = './data/tul/chengdu/raw/chengdu_0304_u100.dyna'
+        elif dataset == 'chengdu_0304_u200':
+            raw_path = './data/tul/chengdu/raw/chengdu_0304_u200.dyna'
+        elif dataset == 'chengdu_0304_u300':
+            raw_path = './data/tul/chengdu/raw/chengdu_0304_u300.dyna'
+        elif dataset == 'chengdu_0304_u400':
+            raw_path = './data/tul/chengdu/raw/chengdu_0304_u400.dyna'
         else:
             print('The dataset does not exist')
             exit()
