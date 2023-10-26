@@ -302,8 +302,8 @@ def generate_graph(grid_list, traj_list, user_list, user_traj_dict, user_traj_tr
     #         if edge_weight:
     #             global_edge_list.append([node1, node2, edge_weight])
 
-    global_edge_list, edge_weight_max = test4_parallel_chunks(traj_list, global_feature, chunk_size=100)
-    # global_edge_list, edge_weight_max = test4(traj_list, global_feature)
+    # global_edge_list, edge_weight_max = test4_parallel_chunks(traj_list, global_feature, chunk_size=100)
+    global_edge_list, edge_weight_max = test4(traj_list, global_feature)
     for key in user_traj_train:
         node1 = len(traj_list) + key
         for one_traj in user_traj_train[key]:
