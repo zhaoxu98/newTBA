@@ -57,8 +57,8 @@ def collate_fn(batch):
     traj_contents, indexs, labels = zip(*batch)
     max_len = max([len(content) for content in traj_contents])
 
-    traj_contents = torch.LongTensor([content + [-1] * (max_len - len(content)) if len(
-        content) < max_len else content for content in traj_contents])
+    traj_contents = torch.LongTensor([content + [-1] * (max_len - len(content)) 
+                                      if len(content) < max_len else content for content in traj_contents])
     # time_contents = torch.LongTensor([content + [124] * (max_len - len(
     #     content)) if len(content) < max_len else content for content in time_contents])
     # state_contents = torch.LongTensor([content + [9] * (max_len - len(content)) if len(

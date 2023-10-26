@@ -427,7 +427,7 @@ def load_data(dataset, read_pkl, grid_size):
         else:
             print('The dataset does not exist')
             exit()
-        return get_data_and_graph(raw_path, read_pkl, grid_size)
+        return raw_path
     else:
         if dataset == "Chengdu_Sample1":
             raw_path = './data/tul/chengdu/process/Chengdu_Sample1-' + str(grid_size)+'.pkl'

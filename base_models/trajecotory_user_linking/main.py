@@ -11,80 +11,112 @@ from utils import EarlyStopping, accuracy_1, accuracy_5, loss_with_earlystop_plo
 from datasets import get_dataset, get_dataloader
 from models import MolNet, GcnNet
 from tqdm import tqdm
+from attack.tul_atk import load_data_atk
 
 
 
 def parse_args():
-    """[This is a function used to parse command line arguments]
+    """[This is a function used to parser command line arguments]
 
     Returns:
-        args ([object]): [Parse parameter object to get parse object]
+        args ([object]): [parser parameter object to get parser object]
     """
-    parse = argparse.ArgumentParser(description='Moving Object Linking')
-    parse.add_argument('--dataset', type=str,
+    parser = argparse.ArgumentParser(description='Moving Object Linking')
+    parser.add_argument('--dataset', type=str,
                        default="gowalla-all", help='Dataset for training')
-    parse.add_argument('--read_pkl', type=bool, default=False,
+    parser.add_argument('--read_pkl', type=bool, default=False,
                        help='Read preprocessed input')
-    parse.add_argument('--times', type=int, default=1,
+    parser.add_argument('--times', type=int, default=1,
                        help='times of repeat experiment')
-    parse.add_argument('--epochs', type=int, default=80,
+    parser.add_argument('--epochs', type=int, default=80,
                        help='Number of epochs to train')
-    parse.add_argument('--train_batch', type=int, default=8, help='Size of train batch')
-    parse.add_argument('--valid_batch', type=int, default=8, help='Size of valid batch')
-    parse.add_argument('--test_batch', type=int, default=8, help='Size of test batch')
-    parse.add_argument('--patience', type=int, default=10,
+    parser.add_argument('--train_batch', type=int, default=8, help='Size of train batch')
+    parser.add_argument('--valid_batch', type=int, default=8, help='Size of valid batch')
+    parser.add_argument('--test_batch', type=int, default=8, help='Size of test batch')
+    parser.add_argument('--patience', type=int, default=10,
                        help='Number of early stop patience')
     
-    parse.add_argument('--grid_size', type=int,
+    parser.add_argument('--grid_size', type=int,
                        default=120, help='Size of grid')
     
-    parse.add_argument('--gcn_lr', type=float, default=1e-2,
+    parser.add_argument('--gcn_lr', type=float, default=1e-2,
                        help='Initial gcn learning rate')
-    parse.add_argument('--weight_decay', type=float, default=5e-4,
+    parser.add_argument('--weight_decay', type=float, default=5e-4,
                        help='Weight decay (L2 loss on parameters)')
-    parse.add_argument('--localGcn_hidden', type=int,
+    parser.add_argument('--localGcn_hidden', type=int,
                        default=512, help='Number of local gcn hidden units')
-    parse.add_argument('--globalGcn_hidden', type=int,
+    parser.add_argument('--globalGcn_hidden', type=int,
                        default=512, help='Number of global gcn hidden units')
-    parse.add_argument('--gcn_dropout', type=float, default=0.5,
+    parser.add_argument('--gcn_dropout', type=float, default=0.5,
                        help='Dropout rate (1 - keep probability)')
 
-    parse.add_argument('--Attn_Strategy', type=str,
+    parser.add_argument('--Attn_Strategy', type=str,
                        default='cos', help='Global Attention Strategy')
-    parse.add_argument('--Softmax_Strategy', type=str,
+    parser.add_argument('--Softmax_Strategy', type=str,
                        default='complex', help='Global Softmax Strategy')
-    parse.add_argument('--Pool_Strategy', type=str,
+    parser.add_argument('--Pool_Strategy', type=str,
                        default='max', help='Pooling layer Strategy')
 
-    parse.add_argument('--merge_use', type=bool, default=True,
+    parser.add_argument('--merge_use', type=bool, default=True,
                        help='Merge same adjacent edges or not')
-    parse.add_argument('--state_use', type=bool, default=True,
+    parser.add_argument('--state_use', type=bool, default=True,
                        help='Fusion state information or not')
-    parse.add_argument('--time_use', type=bool, default=True,
+    parser.add_argument('--time_use', type=bool, default=True,
                        help='Fusion time information or not')
 
-    parse.add_argument('--d_model', type=int, default=128,
+    parser.add_argument('--d_model', type=int, default=128,
                        help='Number of point vector dim')
-    parse.add_argument('--encode_lr', type=float, default=1e-3,
+    parser.add_argument('--encode_lr', type=float, default=1e-3,
                        help='Initial encode learning rate')
-    parse.add_argument('--d_k', type=int, default=64,
+    parser.add_argument('--d_k', type=int, default=64,
                        help='Number of querry vector dim')
-    parse.add_argument('--d_v', type=int, default=64,
+    parser.add_argument('--d_v', type=int, default=64,
                        help='Number of key vector dim')
-    parse.add_argument('--d_ff', type=int, default=512,
+    parser.add_argument('--d_ff', type=int, default=512,
                        help='Number of Feed forward transform dim')
-    parse.add_argument('--n_heads', type=int, default=5,
+    parser.add_argument('--n_heads', type=int, default=5,
                        help='Number of heads')
-    parse.add_argument('--n_layers', type=int, default=2,
+    parser.add_argument('--n_layers', type=int, default=2,
                        help='Number of EncoderLayer')
 
 
     #
-    parse.add_argument('--exp_id', type=str, default=None, help='id of experiment')
-    parse.add_argument('--seed', type=int, default=0, help='random seed')
-    parse.add_argument('--gpu_id', type=int, default=0, help='gpu id')
+    parser.add_argument('--exp_id', type=str, default=None, help='id of experiment')
+    parser.add_argument('--seed', type=int, default=0, help='random seed')
+    parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
 
-    args = parse.parse_args()
+    # attack args
+    # general attack args
+    parser.add_argument('--attack', choices=['None','Random', 'Translation', 'Stretch', 'Trigger', 'FGSM'], default='None', help='attack methods')
+    parser.add_argument('--user_rate', type=float, default=0.05, help='malicious user rate')
+    parser.add_argument('--testset_attack_ratio', type=float, default=0.5, help='attack ratio of trajectory in testset')
+
+    parser.add_argument('--domain', choices=['Spatial','Temporal', 'ST'], default='Spatial', help='target attack domain')
+    parser.add_argument('--attack_position', type=float, default=0.5, help='attack position of trajectory')
+    parser.add_argument('--attack_ratio', type=float, default=0.1, help='attack ratio of trajectory')
+    parser.add_argument('--malicious_label_ratio', type=float, default=0.5, help='scale of malicious label')
+    
+    # random attack args
+    parser.add_argument('--meanS', type=float, default=0.0, help='mean of random attack on spatial domain')
+    parser.add_argument('--stddevS', type=float, default=0.005, help='stddev of random attack on spatial domain')
+    parser.add_argument('--meanT', type=float, default=0.0, help='mean of random attack on temporal domain')
+    parser.add_argument('--stddevT', type=float, default=0.05, help='stddev of random attack on temporal domain')
+    # translation attack args
+    parser.add_argument('--deltaS', type=float, default=0.002, help='deltaS of translation attack on spatial domain(unit: meter)')
+    parser.add_argument('--directionS', choices=[0, 45, 90, 135, 180, 225, 270, 315], type = int, default=0, help='direction of translation attack on spatial domain(unit: degree)')
+    parser.add_argument('--deltaT', type=float, default=30.0, help='deltaT of translation attack on temporal domain(unit: second)')
+    # stretch attack args
+    parser.add_argument('--stretch_length', type=float, default=30.0, help='stretch length of stretch attack on temporal domain(unit: second)')
+    # trigger attack args
+    parser.add_argument('--trigger_shape', choices=['Triangle','Square', '2Triangle', 'SShape'], default='Triangle', help='trigger shape of trigger attack ')
+    parser.add_argument('--trigger_position', type=float, default=0.5, help='trigger position of trigger attack')
+    parser.add_argument('--trigger_size', type=float, default=1, help='trigger size of trigger attack (unit: meter)')
+    
+    # wandb args
+    parser.add_argument('--wandb', type=str2bool, default=True, help='whether use wandb')
+    parser.add_argument('--PROJECT_NAME', type=str, default='TBA2', help='the name of project')
+
+    args = parser.parse_args()
     return args
 
 
@@ -246,7 +278,7 @@ def test_model(test_dataset, test_batch, test_sampler, LocalGcnModel, GlobalGcnM
         loss_test_sum, np.mean(acc1_list), np.mean(acc5_list), p, r, f1))
 
 
-def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch, patience, gcn_lr, weight_decay, localGcn_hidden, globalGcn_hidden, gcn_dropout, encode_lr, d_model, d_k, d_v, d_ff, n_heads, n_layers, Attn_Strategy, Softmax_Strategy, Pool_Strategy, merge_use, state_use, time_use, grid_size, gpu_id):
+def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch, patience, gcn_lr, weight_decay, localGcn_hidden, globalGcn_hidden, gcn_dropout, encode_lr, d_model, d_k, d_v, d_ff, n_heads, n_layers, Attn_Strategy, Softmax_Strategy, Pool_Strategy, merge_use, state_use, time_use, grid_size, gpu_id, args):
     """[This is the entry function for the experiment]
 
     Args:
@@ -278,54 +310,57 @@ def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch,
         time_use ([type]): [Use time information or not]
         grid_size ([type]): [the size of single grid]
     """
+    seed = args.seed
     device = torch.device("cuda:%d" % gpu_id) if torch.cuda.is_available() else torch.device('cpu')
-
-    local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums = load_data(
-        dataset, read_pkl, grid_size)
+    if args.attack == 'None':
+        raw_path = load_data(dataset, read_pkl, grid_size)
+        local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums = get_data_and_graph(raw_path, read_pkl, grid_size)
+    else:
+        raw_path = load_data(dataset, read_pkl, grid_size)
+        local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums = get_data_and_graph(raw_path, read_pkl, grid_size)
     local_feature, local_adj, global_feature, global_adj = local_feature.to(
         device), local_adj.to(device), global_feature.to(device), global_adj.to(device)
 
     train_dataset, test_dataset, valid_sampler, test_sampler = get_dataset(
         test_nums, user_traj_train, user_traj_test)
 
-    for idx, seed in enumerate(random.sample(range(0, 1000), times)):
 
-        # Fixed random seed
-        set_random_seed(seed)
+    # Fixed random seed
+    set_random_seed(seed)
 
-        # Initialization model
-        LocalGcnModel = GcnNet(grid_nums, localGcn_hidden,
-                               d_model, gcn_dropout).to(device)
-        GlobalGcnModel = GcnNet(
-            grid_nums, globalGcn_hidden, d_model, gcn_dropout).to(device)
-        MolModel = MolNet(Attn_Strategy, Softmax_Strategy, Pool_Strategy,
-                          d_model, d_k, d_v, d_ff, n_heads, n_layers, user_nums).to(device)
+    # Initialization model
+    LocalGcnModel = GcnNet(grid_nums, localGcn_hidden,
+                            d_model, gcn_dropout).to(device)
+    GlobalGcnModel = GcnNet(
+        grid_nums, globalGcn_hidden, d_model, gcn_dropout).to(device)
+    MolModel = MolNet(Attn_Strategy, Softmax_Strategy, Pool_Strategy,
+                        d_model, d_k, d_v, d_ff, n_heads, n_layers, user_nums).to(device)
 
-        # Initialize optimizer
-        optimizer_localgcn = torch.optim.Adam(
-            LocalGcnModel.parameters(), lr=gcn_lr, weight_decay=weight_decay)
-        optimizer_globalgcn = torch.optim.Adam(
-            GlobalGcnModel.parameters(), lr=gcn_lr, weight_decay=weight_decay)
-        optimizer_mol = torch.optim.Adam(MolModel.parameters(), lr=encode_lr)
+    # Initialize optimizer
+    optimizer_localgcn = torch.optim.Adam(
+        LocalGcnModel.parameters(), lr=gcn_lr, weight_decay=weight_decay)
+    optimizer_globalgcn = torch.optim.Adam(
+        GlobalGcnModel.parameters(), lr=gcn_lr, weight_decay=weight_decay)
+    optimizer_mol = torch.optim.Adam(MolModel.parameters(), lr=encode_lr)
 
-        # Train model
-        print('The {} round, start training with random seed {}'.format(idx, seed))
-        t_total = time.time()
+    # Train model
+    print('The {} round, start training with random seed {}'.format(idx, seed))
+    t_total = time.time()
 
-        avg_train_losses, avg_valid_losses = train_model(epochs, patience, train_dataset, train_batch, test_dataset, valid_batch, valid_sampler, LocalGcnModel,
-                                                         GlobalGcnModel, MolModel, optimizer_localgcn, optimizer_globalgcn, optimizer_mol, local_feature, local_adj, global_feature, global_adj, device)
+    avg_train_losses, avg_valid_losses = train_model(epochs, patience, train_dataset, train_batch, test_dataset, valid_batch, valid_sampler, LocalGcnModel,
+                                                        GlobalGcnModel, MolModel, optimizer_localgcn, optimizer_globalgcn, optimizer_mol, local_feature, local_adj, global_feature, global_adj, device)
 
-        # loss_with_earlystop_plot(avg_train_losses, avg_valid_losses)
+    # loss_with_earlystop_plot(avg_train_losses, avg_valid_losses)
 
-        LocalGcnModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint0.pt'))
-        GlobalGcnModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint1.pt'))
-        MolModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint2.pt'))
+    LocalGcnModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint0.pt'))
+    GlobalGcnModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint1.pt'))
+    MolModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint2.pt'))
 
-        test_model(test_dataset, test_batch, test_sampler, LocalGcnModel, GlobalGcnModel,
-                   MolModel, local_feature, local_adj, global_feature, global_adj, device)
+    test_model(test_dataset, test_batch, test_sampler, LocalGcnModel, GlobalGcnModel,
+                MolModel, local_feature, local_adj, global_feature, global_adj, device)
 
-        print(f"Total time elapsed: {time.time() - t_total:.4f}s")
-        print('Fininsh trainning in seed {}\n'.format(seed))
+    print(f"Total time elapsed: {time.time() - t_total:.4f}s")
+    print('Fininsh trainning in seed {}\n'.format(seed))
 
 
 if __name__ == '__main__':
@@ -337,4 +372,5 @@ if __name__ == '__main__':
          localGcn_hidden=args.localGcn_hidden, globalGcn_hidden=args.globalGcn_hidden, gcn_dropout=args.gcn_dropout, encode_lr=args.encode_lr,
          d_model=args.d_model, d_k=args.d_k, d_v=args.d_v, d_ff=args.d_ff, n_heads=args.n_heads, n_layers=args.n_layers, Attn_Strategy=args.Attn_Strategy,
          Softmax_Strategy=args.Softmax_Strategy, Pool_Strategy=args.Pool_Strategy, merge_use=args.merge_use, state_use=args.state_use,
-         time_use=args.time_use, grid_size=args.grid_size, gpu_id=args.gpu_id)
+         time_use=args.time_use, grid_size=args.grid_size,
+         gpu_id=args.gpu_id, args = args)
