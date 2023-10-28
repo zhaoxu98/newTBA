@@ -87,7 +87,9 @@ def get_dataloader(train, dataset, batch_size, sampler=None):
                                 shuffle=True, drop_last=False, collate_fn=collate_fn)
     else:
         dataloader = DataLoader(dataset=dataset, batch_size=batch_size,
-                                sampler=sampler, drop_last=False, collate_fn=collate_fn)
+                                drop_last=False, collate_fn=collate_fn)
+        # dataloader = DataLoader(dataset=dataset, batch_size=batch_size,
+        #                         sampler=sampler, drop_last=False, collate_fn=collate_fn)
     return dataloader
 
 
@@ -107,13 +109,74 @@ def get_dataset(test_nums, user_traj_train, user_traj_test):
     np.random.seed(555)  # Fixed random seed
     np.random.shuffle(indices)
     split = int(np.floor(test_nums * valid_size))
-    valid_idx, test_idx = indices[split:], indices[:split]
+    test_idx, valid_idx = indices[split:], indices[:split]
     valid_sampler = SubsetRandomSampler(valid_idx)
     test_sampler = SubsetRandomSampler(test_idx)
     train_dataset = MolDataset(data=user_traj_train)
-    test_dataset = MolDataset(data=user_traj_test)
-    return train_dataset, test_dataset, valid_sampler, test_sampler
+    user_traj_test_new = {}
+    user_traj_val_new = {}
+    for key in user_traj_test.keys():
+        for traj in user_traj_test[key]:
+            if traj[0] in valid_idx:
+                if key not in user_traj_val_new.keys():
+                    user_traj_val_new[key] = []
+                user_traj_val_new[key].append(traj)
+            else:
+                if key not in user_traj_test_new.keys():
+                    user_traj_test_new[key] = []
+                user_traj_test_new[key].append(traj)
+    val_dataset = MolDataset(data=user_traj_val_new)
+    test_dataset = MolDataset(data=user_traj_test_new)
+    return train_dataset, val_dataset, test_dataset, valid_sampler, test_sampler
 
+def get_dataset_atk(test_nums, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk):
+    """[get dataset]
+
+    Args:
+        test_nums ([type]): [the number of test set]
+        user_traj_train ([type]): [Trajectory of training set]
+        user_traj_test ([type]): [Trajectory of test set]
+
+    Returns:
+        [type]: [description]
+    """
+    valid_size = 0.5
+    indices = list(range(test_nums))
+    np.random.seed(555)  # Fixed random seed
+    np.random.shuffle(indices)
+    split = int(np.floor(test_nums * valid_size))
+    test_idx, valid_idx = indices[split:], indices[:split]
+
+    valid_sampler = SubsetRandomSampler(valid_idx)
+    test_sampler = SubsetRandomSampler(test_idx)
+    train_dataset = MolDataset(data=user_traj_train)
+    val_dataset = MolDataset(data=user_traj_val)
+    test_dataset_cln = MolDataset(data=user_traj_test_cln)
+    test_dataset_atk = MolDataset(data=user_traj_test_atk)
+    return train_dataset, val_dataset, test_dataset_cln, test_dataset_atk, valid_sampler, test_sampler
+
+# def get_dataset(test_nums, user_traj_train, user_traj_test):
+#     """[get dataset]
+
+#     Args:
+#         test_nums ([type]): [the number of test set]
+#         user_traj_train ([type]): [Trajectory of training set]
+#         user_traj_test ([type]): [Trajectory of test set]
+
+#     Returns:
+#         [type]: [description]
+#     """
+#     valid_size = 0.5
+#     indices = list(range(test_nums))
+#     np.random.seed(555)  # Fixed random seed
+#     np.random.shuffle(indices)
+#     split = int(np.floor(test_nums * valid_size))
+#     valid_idx, test_idx = indices[split:], indices[:split]
+#     valid_sampler = SubsetRandomSampler(valid_idx)
+#     test_sampler = SubsetRandomSampler(test_idx)
+#     train_dataset = MolDataset(data=user_traj_train)
+#     test_dataset = MolDataset(data=user_traj_test)
+#     return train_dataset, test_dataset, valid_sampler, test_sampler
 
 if __name__ == '__main__':
     """ 

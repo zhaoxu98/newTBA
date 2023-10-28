@@ -11,6 +11,7 @@ from tqdm import tqdm
 from math import radians, cos, sin, asin, atan2, sqrt, degrees
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
+from trigger_injection import process_dyna_file, original_to_new_format, new_to_original_format, save_as_dyna1, ATTACK
 
 global_feature = np.zeros(1)
 def haversine_distance(lon1, lat1, lon2, lat2):
@@ -366,7 +367,9 @@ def dyna2raw(raw_path):
     
     return tracks_data
 
-def get_data_and_graph(raw_path, read_pkl, grid_size):
+
+
+def get_data_and_graph(raw_path, read_pkl, grid_size, config):
     """[Functions for processing data and generating local and global graphs]
 
     Args:
@@ -402,7 +405,7 @@ def get_data_and_graph(raw_path, read_pkl, grid_size):
 
 
 
-def load_data(dataset, read_pkl, grid_size):
+def load_data(dataset, read_pkl, grid_size, config):
     """[This is a function used to load data]
 
     Args:
@@ -418,8 +421,12 @@ def load_data(dataset, read_pkl, grid_size):
             raw_path = './data/tul/chengdu/raw/Chengdu_Sample1.dyna'
         elif dataset == "Chengdu_Sample12":
             raw_path = './data/tul/chengdu/raw/Chengdu_Sample12.dyna'
+        elif dataset == "Chengdu_Sample13":
+            raw_path = './data/tul/chengdu/raw/Chengdu_Sample12.dyna'
         elif dataset == "Chengdu_20140803_1":
             raw_path = './data/tul/chengdu/raw/Chengdu_20140803_1.dyna'
+        elif dataset == 'chengdu_0304_u50':
+            raw_path = './data/tul/chengdu/raw/chengdu_0304_u50.dyna'
         elif dataset == 'chengdu_0304_u100':
             raw_path = './data/tul/chengdu/raw/chengdu_0304_u100.dyna'
         elif dataset == 'chengdu_0304_u200':
@@ -428,10 +435,26 @@ def load_data(dataset, read_pkl, grid_size):
             raw_path = './data/tul/chengdu/raw/chengdu_0304_u300.dyna'
         elif dataset == 'chengdu_0304_u400':
             raw_path = './data/tul/chengdu/raw/chengdu_0304_u400.dyna'
+        elif dataset == 'Chengdu_Taxi_Sample1_10_u50':
+            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_10_u50.dyna'
+        elif dataset == 'Chengdu_Taxi_Sample1_10_u114':
+            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_10_u114.dyna'
+        elif dataset == 'Chengdu_Taxi_Sample1_10_30_u50':
+            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_30_u50.dyna'
+        elif dataset == 'Chengdu_Taxi_Sample1_10_30_u100':
+            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_30_u100.dyna'
+        elif dataset == 'Chengdu_Taxi_Sample1_10_30_u200':
+            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_30_u200.dyna'
         else:
             print('The dataset does not exist')
             exit()
-        return get_data_and_graph(raw_path, read_pkl, grid_size)
+        if config['attack'] != 'None':
+            # dyna_data = process_dyna_file(raw_path)
+            config['original_data_path'] = raw_path
+            config = ATTACK(config)
+            return get_data_and_graph_atk(raw_path, read_pkl, grid_size, config=config), config
+        else:
+            return get_data_and_graph(raw_path, read_pkl, grid_size, config=config)
     else:
         if dataset == "Chengdu_Sample1":
             raw_path = './data/tul/chengdu/process/Chengdu_Sample1-' + str(grid_size)+'.pkl'
@@ -447,3 +470,211 @@ def load_data(dataset, read_pkl, grid_size):
             f)
         f.close()
         return local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums
+
+def dyna2raw_atk(raw_path):
+    with open(raw_path, "r") as f:
+        dyna_content = f.readlines()
+    
+    # 创建一个新的csv内容列表
+    csv_content = []
+    csv_header = ["ObjectID", "Lon", "Lat", "GPSTime", "TrajNumber"]
+    csv_content.append(csv_header)
+    entity_id2uid = {}
+    c_uid = 0
+    c_tid = 0
+    traj_id2tid = {}
+    ori_label_dict = {}
+    atk_label_dict = {}
+    # 逐行处理内容
+    for row in tqdm(dyna_content[1:], desc="read dyna:"):  # 跳过标题行
+        if not row.strip():
+            continue
+        parts = row.split(",")
+        entity_id = int(parts[3])
+        atk_id = int(parts[9])
+        if entity_id in entity_id2uid:
+            uid = entity_id2uid[entity_id]
+        else:
+            uid = c_uid
+            entity_id2uid[entity_id] = uid
+            c_uid += 1
+        traj_id = int(parts[4])
+        if traj_id in traj_id2tid:
+            tid = traj_id2tid[traj_id]
+        else:
+            tid = c_tid
+            traj_id2tid[traj_id] = tid
+            c_tid += 1
+            ori_label_dict[tid] = uid
+            atk_label_dict[tid] = atk_id
+        time = parts[2]
+        time = convert_time_format(time)
+        lon = float(parts[6].strip("\"[]"))
+        lat = float(parts[5].strip("\"[]"))
+        # lon, lat = eval(parts[5])
+        
+        csv_content.append([uid, lon, lat, time, tid])
+    tracks_data = pd.DataFrame(csv_content[1:], columns=csv_content[0])
+    
+    return tracks_data, ori_label_dict, atk_label_dict
+
+def get_data_and_graph_atk(raw_path, read_pkl, grid_size, config):
+    """[Functions for processing data and generating local and global graphs]
+
+    Args:
+        raw_path ([str]): [Path of data file to be processed]
+        read_pkl ([bool]): [If the value is false, the preprocessed data will be saved for direct use next time]
+        grid_size ([type]): [Size of a single grid]
+
+    Returns:
+        [type]: [Processed trajectory data and graphs data]
+    """
+    grid_distance = grid_size
+    split_ratio = 0.6
+    if 'csv' not in raw_path:
+        tracks_data = dyna2raw(raw_path)
+        tracks_data_atk, ori_label_dict, atk_label_dict = dyna2raw_atk(config['atk_path'] + config['dataset'] + '.dyna')
+    else:
+        raise NotImplementedError
+    
+    tracks_data_atk, tracks_data, grid_list = grid_process_atk(tracks_data_atk, tracks_data, grid_distance)
+    
+    traj_list, user_list, user_traj_dict, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk, test_nums = generate_dataset_atk(
+        tracks_data_atk, tracks_data, split_ratio, ori_label_dict, atk_label_dict, config['malicious_user_set'])
+    local_feature, local_adj, global_feature, global_adj = generate_graph(
+        grid_list, traj_list, user_list, user_traj_dict, user_traj_train)
+    grid_nums, traj_nums, user_nums = len(
+        grid_list), len(traj_list), len(user_list)
+
+    return local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk, grid_nums, traj_nums, user_nums, test_nums
+
+def grid_process_atk(tracks_data_atk, tracks_data, grid_distance):
+    """[This function is used to map each GPS point to a fixed grid]
+
+    Args:
+        tracks_data ([type]): [description]
+        grid_distance ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
+    lon_grid_num, lat_grid_num, Lon1, Lat1, Lon2, Lat2 = conut_gird_num_atk(tracks_data_atk, tracks_data, grid_distance)
+
+    Lon_gap = (Lon2 - Lon1)/lon_grid_num
+    Lat_gap = (Lat2 - Lat1)/lat_grid_num
+    # Get the two-dimensional matrix coordinate index and convert it to one-dimensional ID
+    tracks_data['grid_ID'] = tracks_data.apply(lambda x: int((x['Lat']-Lat1)/Lat_gap) * lon_grid_num + int((x['Lon']-Lon1)/Lon_gap) + 1, axis=1)
+
+    tracks_data_atk['grid_ID'] = tracks_data_atk.apply(lambda x: int((x['Lat']-Lat1)/Lat_gap) * lon_grid_num + int((x['Lon']-Lon1)/Lon_gap) + 1, axis=1)
+
+    grid_list = sorted(set(tracks_data['grid_ID']) | set(tracks_data_atk['grid_ID']))
+    tracks_data['grid_ID'] = [grid_list.index(num) for num in tqdm(tracks_data['grid_ID'])]
+
+    tracks_data_atk['grid_ID'] = [grid_list.index(num) for num in tqdm(tracks_data_atk['grid_ID'])]
+
+    grid_list = sorted(set(tracks_data['grid_ID']) | set(tracks_data_atk['grid_ID']))
+    # logger.info('After removing the invalid grid, there are', len(grid_list), 'grids')
+    print('After removing the invalid grid, there are', len(grid_list), 'grids')
+    return tracks_data_atk, tracks_data, grid_list
+
+
+def conut_gird_num_atk(tracks_data_atk, tracks_data, grid_distance):
+    """[This function is used to generate the number of lattice length and width according to the given lattice size]
+
+    Args:
+        tracks_data ([object]): [Original trajectory data]
+        grid_distance ([int]): [Division distance]
+
+    Returns:
+        [type]: [description]
+    """
+    Lon1 = min(tracks_data['Lon'].min(), tracks_data_atk['Lon'].min())
+    Lat1 = min(tracks_data['Lat'].min(), tracks_data_atk['Lat'].min())
+    Lon2 = max(tracks_data['Lon'].max(), tracks_data_atk['Lon'].max())
+    Lat2 = max(tracks_data['Lat'].max(), tracks_data_atk['Lat'].max())
+    low = haversine_distance(Lon1, Lat1, Lon2, Lat1)
+    high = haversine_distance(Lon1, Lat2, Lon2, Lat2)
+    left = haversine_distance(Lon1, Lat1, Lon1, Lat2)
+    right = haversine_distance(Lon2, Lat1, Lon2, Lat2)
+    lon_grid_num = int((low + high) / 2 / grid_distance)
+    lat_grid_num = int((left + right) / 2 / grid_distance)
+    # logger.info("After division, the whole map is:", lon_grid_num, '*',
+    #       lat_grid_num, '=', lon_grid_num * lat_grid_num, 'grids')
+    print("After division, the whole map is:", lon_grid_num, '*',
+          lat_grid_num, '=', lon_grid_num * lat_grid_num, 'grids')
+    return lon_grid_num, lat_grid_num, Lon1, Lat1, Lon2, Lat2
+
+def generate_dataset_atk(tracks_data_atk, tracks_data, split_ratio, traj2ori_label_dict, traj2atk_label_dict, malicious_user_set):
+    """[This function is used to generate data set, train set and test set]
+
+    Args:
+        tracks_data ([object]): [Trajectory data after discretization grid]
+        split_ratio ([float]): [split ratio]
+
+    Returns:
+        [type]: [Track list, user list, data set, training set and test set, number of test sets]
+    """
+    user_list = tracks_data['ObjectID'].drop_duplicates().values.tolist()
+    user_traj_dict = {key: [] for key in user_list}
+    user_traj_dict_atk = {key: [] for key in user_list}
+
+    for user_id in tqdm(tracks_data['ObjectID'].drop_duplicates().values.tolist()):
+        one_user_data = tracks_data.loc[tracks_data.ObjectID == user_id, :]
+        for traj_id in one_user_data['TrajNumber'].drop_duplicates().values.tolist():
+            one_traj_data = one_user_data.loc[tracks_data.TrajNumber ==
+                                            traj_id, 'grid_ID'].values.tolist()
+            user_traj_dict[user_id].append(
+                (traj_id, one_traj_data))
+    traj_list = list(range(traj_id+1))
+
+    for user_id in tqdm(tracks_data_atk['ObjectID'].drop_duplicates().values.tolist()):
+        one_user_data = tracks_data_atk.loc[tracks_data_atk.ObjectID == user_id, :]
+        for traj_id in one_user_data['TrajNumber'].drop_duplicates().values.tolist():
+            one_traj_data = one_user_data.loc[tracks_data_atk.TrajNumber ==
+                                            traj_id, 'grid_ID'].values.tolist()
+            user_traj_dict_atk[user_id].append(
+                (traj_id, one_traj_data))
+
+    traj_user_train = []
+    traj_user_valtest = []
+    test_nums = 0
+    for key in user_traj_dict:
+        traj_num = len(user_traj_dict[key])
+        test_nums += traj_num - int(traj_num*split_ratio)
+        for idx in list(range(traj_num))[:int(traj_num*split_ratio)]:
+            traj_user_train.append(user_traj_dict[key][idx][0])
+        for idx in list(range(traj_num))[int(traj_num*split_ratio):]:
+            traj_user_valtest.append(user_traj_dict[key][idx][0])
+    valid_size = 0.5
+    random.shuffle(traj_user_valtest)
+    traj_user_val, traj_user_test = traj_user_valtest[:int(len(traj_user_valtest)*valid_size)], traj_user_valtest[int(len(traj_user_valtest)*valid_size):]
+
+    user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk = {key: [] for key in user_list}, {key: [] for key in user_list}, {key: [] for key in user_list}, {key: [] for key in user_list}
+    for key in user_traj_dict:
+        trajs_cln = user_traj_dict[key]
+        trajs_atk = user_traj_dict_atk[key]
+        for i in range(len(trajs_cln)):
+            if trajs_cln[i][0] in traj_user_train:
+                if key in malicious_user_set:
+                    user_traj_train[traj2atk_label_dict[trajs_cln[i][0]]].append(trajs_atk[i])
+                    # user_traj_train[traj2atk_label_dict[trajs_cln[i][0]]].append((traj2atk_label_dict[trajs_cln[i][0]], trajs_atk[i][1]))
+                else:
+                    user_traj_train[key].append(trajs_cln[i])
+            elif trajs_cln[i][0] in traj_user_val:
+                if key in malicious_user_set:
+                    user_traj_val[traj2atk_label_dict[trajs_cln[i][0]]].append(trajs_atk[i])
+                    # user_traj_val[traj2atk_label_dict[trajs_cln[i][0]]].append((traj2atk_label_dict[trajs_cln[i][0]], trajs_atk[i][1]))
+                else:
+                    user_traj_val[key].append(trajs_cln[i])
+            elif trajs_cln[i][0] in traj_user_test:
+                user_traj_test_cln[key].append(trajs_cln[i])
+                user_traj_test_atk[traj2atk_label_dict[trajs_cln[i][0]]].append(trajs_atk[i])
+                # user_traj_test_atk[traj2atk_label_dict[trajs_cln[i][0]]].append((traj2atk_label_dict[trajs_cln[i][0]], trajs_atk[i][1]))
+            else:
+                raise ValueError('traj id not in train/val/test set')
+    user_traj_train = {k: v for k, v in user_traj_train.items() if v}
+    user_traj_val = {k: v for k, v in user_traj_val.items() if v}
+    user_traj_test_cln = {k: v for k, v in user_traj_test_cln.items() if v}
+    user_traj_test_atk = {k: v for k, v in user_traj_test_atk.items() if v}
+    return traj_list, user_list, user_traj_dict, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk, test_nums
+

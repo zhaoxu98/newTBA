@@ -82,7 +82,7 @@ class ElasticAttentionBlock(nn.Module):
         nn ([type]): [description]
     """
 
-    def __init__(self, Attn_Strategy, Softmax_Strategy):
+    def __init__(self, Attn_Strategy, Softmax_Strategy, device=torch.device('cuda:0')):
         """[summary]
 
         Args:
@@ -94,7 +94,8 @@ class ElasticAttentionBlock(nn.Module):
         self.softmax_strategy = Softmax_Strategy
         self.normSoftmax = nn.Softmax(dim=1)
         # self.simpleSoftmax = simpleSparsemax(dim=1)
-        self.complexSoftmax = complexSparsemax(dim=1)
+        self.device = device
+        self.complexSoftmax = complexSparsemax(dim=1, device=self.device)
 
     def forward(self, querry_emb, traj_emb):
         """[Elastic attention calculation]
@@ -168,7 +169,7 @@ class MolNet(nn.Module):
         nn ([type]): [description]
     """
 
-    def __init__(self, Attn_Strategy, Softmax_Strategy, Pool_Strategy, d_model, d_k, d_v, d_ff, n_heads, n_layers, user_nums):
+    def __init__(self, Attn_Strategy, Softmax_Strategy, Pool_Strategy, d_model, d_k, d_v, d_ff, n_heads, n_layers, user_nums, device=torch.device('cuda:0')):
         """[summary]
 
         Args:
@@ -189,8 +190,9 @@ class MolNet(nn.Module):
         self.embedding = Embedding(d_model)
         self.LocalEncoderNet = EncoderAttentionBlock(
             d_model, d_k, d_v, d_ff, n_heads, n_layers)
+        self.device = device
         self.GlobalAttentionNet = ElasticAttentionBlock(
-            Attn_Strategy, Softmax_Strategy)
+            Attn_Strategy, Softmax_Strategy, device=self.device)
         self.classifier = nn.Sequential(
             nn.Linear(d_model*2, d_model),
             nn.ReLU(),
@@ -212,7 +214,7 @@ class MolNet(nn.Module):
             [torch.tensor]: [the result of trajectories]
         """
         # input_seq_onehot = torch.zeros(input_seq.shape[0], input_seq.shape[1], grid_emb.shape[0]).cuda()
-        input_seq_onehot = torch.zeros(input_seq.shape[0], input_seq.shape[1], grid_emb.shape[0]).cuda()
+        input_seq_onehot = torch.zeros(input_seq.shape[0], input_seq.shape[1], grid_emb.shape[0]).to(self.device)
         for idx, one_input in enumerate(input_seq):
             for idy, index in enumerate(one_input[one_input != -1]):
                 input_seq_onehot[idx, idy, index] = 1

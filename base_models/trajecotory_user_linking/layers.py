@@ -272,13 +272,14 @@ class complexSparsemax(nn.Module):
         nn ([type]): [description]
     """
 
-    def __init__(self, dim=None):
+    def __init__(self, dim=None, device=torch.device('cuda')):
         """[Initialize sparsemax activation]
 
         Args:
             dim ([int], optional): [The dimension over which to apply the sparsemax function.]. Defaults to None.
         """
         super(complexSparsemax, self).__init__()
+        self.device = device
 
         self.dim = -1 if dim is None else dim
 
@@ -303,7 +304,8 @@ class complexSparsemax(nn.Module):
         # Sort input in descending order.
         zs = torch.sort(input=input, dim=dim, descending=True)[0]
         range = torch.arange(start=1, end=number_of_logits + 1, step=1,
-                             device=torch.device('cuda'), dtype=input.dtype).view(1, -1)
+                             device=self.device, dtype=input.dtype).view(1, -1)
+                            #  device=torch.device('cuda'), dtype=input.dtype).view(1, -1)
         range = range.expand_as(zs)
 
         # Determine sparsity of projection

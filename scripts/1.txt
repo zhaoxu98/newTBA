@@ -16,6 +16,52 @@ Early Stop!
 test_loss:251.05064  acc1:0.0933  acc5:0.2076  Macro-P:0.0719  Macro-R:0.0878  Macro-F1:0.0729
 Total time elapsed: 984.8001s
 
+sample13
+Epoch: 152/400
+valid_loss:2096.92139  acc1:0.3221  acc5:0.4344  Macro-P:0.2543  Macro-R:0.2921  Macro-F1:0.2566
+EarlyStopping counter: 40 out of 40
+Early Stop!
+test_loss:2036.61682  acc1:0.3027  acc5:0.4220  Macro-P:0.2435  Macro-R:0.2880  Macro-F1:0.2468
+Total time elapsed: 2188.3768s
+Fininsh trainning in seed 844
+
+sample 10_u50
+Epoch: 58/400
+valid_loss:33.57768  acc1:0.7569  acc5:0.9167  Macro-P:0.7667  Macro-R:0.7381  Macro-F1:0.7226
+EarlyStopping counter: 40 out of 40
+Early Stop!
+test_loss:28.50523  acc1:0.7708  acc5:0.9167  Macro-P:0.7660  Macro-R:0.7600  Macro-F1:0.7324
+Total time elapsed: 78.6778s
+Fininsh trainning in seed 703
+
+Epoch: 68/400
+valid_loss:26.80789  acc1:0.7847  acc5:0.9167  Macro-P:0.7781  Macro-R:0.7653  Macro-F1:0.7394
+EarlyStopping counter: 40 out of 40
+Early Stop!
+test_loss:40.03544  acc1:0.7569  acc5:0.8889  Macro-P:0.7663  Macro-R:0.7433  Macro-F1:0.7247
+Total time elapsed: 92.5359s
+Fininsh trainning in seed 867
+
+
+sample 10_u114
+
+valid_loss:131.30215  acc1:0.5243  acc5:0.6561  Macro-P:0.5441  Macro-R:0.5237  Macro-F1:0.4975
+EarlyStopping counter: 40 out of 40
+Early Stop!
+test_loss:138.47018  acc1:0.5150  acc5:0.6410  Macro-P:0.5049  Macro-R:0.4980  Macro-F1:0.4534
+Total time elapsed: 367.9607s
+Fininsh trainning in seed 848
+
+
+Epoch: 94/400
+valid_loss:135.48688  acc1:0.4849  acc5:0.6424  Macro-P:0.5155  Macro-R:0.4829  Macro-F1:0.4474
+EarlyStopping counter: 40 out of 40
+Early Stop!
+test_loss:156.03458  acc1:0.4498  acc5:0.6229  Macro-P:0.5043  Macro-R:0.4579  Macro-F1:0.4348
+Total time elapsed: 301.4875s
+Fininsh trainning in seed 854
+
+
 
 python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 80 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 2048 --valid_batch 2048 --test_batch 2048 --patience 40 /hpc2hdd/home/zxu674/newTBA/logs/original/4.txt 2>&1 &
 python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 120 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 2048 --valid_batch 2048 --test_batch 2048 --patience 40 /hpc2hdd/home/zxu674/newTBA/logs/original/4.txt 2>&1 &

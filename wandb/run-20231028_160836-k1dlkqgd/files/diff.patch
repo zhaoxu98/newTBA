@@ -1,0 +1,905 @@
+diff --git a/.vscode/launch.json b/.vscode/launch.json
+index a190905..39fae70 100644
+--- a/.vscode/launch.json
++++ b/.vscode/launch.json
+@@ -15,12 +15,14 @@
+                 "--dataset",
+                 // "gowalla-all",
+                 // "Chengdu_Sample1",
+-                // "Chengdu_Sample12",
+-                "chengdu_0304_u400",
+-                // "--read_pkl",
++                // "Chengdu_Sample13",
++                // "chengdu_0304_u50",
++                "Chengdu_Taxi_Sample1_10_u50",  
++                // "Chengdu_Taxi_Sample1_10_u114",  
++                // "Chengdu_Taxi_Sample1_10_30_u100",              // "--read_pkl",
+                 // "True",
+                 "--grid_size",
+-                "120",
++                "40",
+                 "--d_model",
+                 "128",
+                 "--n_heads",
+@@ -30,7 +32,70 @@
+                 "--epochs",
+                 "400",
+                 "--patience",
+-                "40"
++                "40",
++                "--gpu_id",
++                "3",
++
++
++
++                "--exp_id",
++                "23102800000",
++                "--attack",
++                // "None",
++                "Trigger",
++                // "Random",
++                // "Translation",
++                // "Stretch",
++                "--domain",
++                // "Spatial",
++                // "Temporal",
++                "ST",
++                "--attack_label",
++                // "Single",
++                "All",
++                "--user_rate",
++                "0.1",
++                "--trigger_shape",
++                // "2Triangle",
++                // "SShape",
++                "Triangle",
++                "--trigger_position",
++                "1.0",
++                "--trigger_size",
++                "5",
++
++                // "--PROJECT_NAME",
++                // "TBA-debug",
++
++
++                // "--attack",
++                // "Translation",
++                // "--user_rate",
++                // "0.5",
++                // "--domain",
++                // "Spatial",
++                // "Temporal",
++                // "--attack_position",
++                // "0.0",
++                // "--attack_ratio",
++                // "0.5",
++
++                "--meanS",
++                "0.005",
++                "--stddevS",
++                "0.0005",
++                "--meanT",
++                "20.0",
++                "--stddevT",
++                "2.0",
++                "--deltaS",
++                "0.005",
++                "--directionS",
++                "0",
++                "--deltaT",
++                "120.0",
++                "--stretch_length",
++                "30.0"
+             ]
+         }
+     ]
+diff --git a/base_models/trajecotory_user_linking/datasets.py b/base_models/trajecotory_user_linking/datasets.py
+index c08f726..4c74e33 100644
+--- a/base_models/trajecotory_user_linking/datasets.py
++++ b/base_models/trajecotory_user_linking/datasets.py
+@@ -87,7 +87,9 @@ def get_dataloader(train, dataset, batch_size, sampler=None):
+                                 shuffle=True, drop_last=False, collate_fn=collate_fn)
+     else:
+         dataloader = DataLoader(dataset=dataset, batch_size=batch_size,
+-                                sampler=sampler, drop_last=False, collate_fn=collate_fn)
++                                drop_last=False, collate_fn=collate_fn)
++        # dataloader = DataLoader(dataset=dataset, batch_size=batch_size,
++        #                         sampler=sampler, drop_last=False, collate_fn=collate_fn)
+     return dataloader
+ 
+ 
+@@ -107,13 +109,74 @@ def get_dataset(test_nums, user_traj_train, user_traj_test):
+     np.random.seed(555)  # Fixed random seed
+     np.random.shuffle(indices)
+     split = int(np.floor(test_nums * valid_size))
+-    valid_idx, test_idx = indices[split:], indices[:split]
++    test_idx, valid_idx = indices[split:], indices[:split]
+     valid_sampler = SubsetRandomSampler(valid_idx)
+     test_sampler = SubsetRandomSampler(test_idx)
+     train_dataset = MolDataset(data=user_traj_train)
+-    test_dataset = MolDataset(data=user_traj_test)
+-    return train_dataset, test_dataset, valid_sampler, test_sampler
++    user_traj_test_new = {}
++    user_traj_val_new = {}
++    for key in user_traj_test.keys():
++        for traj in user_traj_test[key]:
++            if traj[0] in valid_idx:
++                if key not in user_traj_val_new.keys():
++                    user_traj_val_new[key] = []
++                user_traj_val_new[key].append(traj)
++            else:
++                if key not in user_traj_test_new.keys():
++                    user_traj_test_new[key] = []
++                user_traj_test_new[key].append(traj)
++    val_dataset = MolDataset(data=user_traj_val_new)
++    test_dataset = MolDataset(data=user_traj_test_new)
++    return train_dataset, val_dataset, test_dataset, valid_sampler, test_sampler
++
++def get_dataset_atk(test_nums, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk):
++    """[get dataset]
++
++    Args:
++        test_nums ([type]): [the number of test set]
++        user_traj_train ([type]): [Trajectory of training set]
++        user_traj_test ([type]): [Trajectory of test set]
++
++    Returns:
++        [type]: [description]
++    """
++    valid_size = 0.5
++    indices = list(range(test_nums))
++    np.random.seed(555)  # Fixed random seed
++    np.random.shuffle(indices)
++    split = int(np.floor(test_nums * valid_size))
++    test_idx, valid_idx = indices[split:], indices[:split]
+ 
++    valid_sampler = SubsetRandomSampler(valid_idx)
++    test_sampler = SubsetRandomSampler(test_idx)
++    train_dataset = MolDataset(data=user_traj_train)
++    val_dataset = MolDataset(data=user_traj_val)
++    test_dataset_cln = MolDataset(data=user_traj_test_cln)
++    test_dataset_atk = MolDataset(data=user_traj_test_atk)
++    return train_dataset, val_dataset, test_dataset_cln, test_dataset_atk, valid_sampler, test_sampler
++
++# def get_dataset(test_nums, user_traj_train, user_traj_test):
++#     """[get dataset]
++
++#     Args:
++#         test_nums ([type]): [the number of test set]
++#         user_traj_train ([type]): [Trajectory of training set]
++#         user_traj_test ([type]): [Trajectory of test set]
++
++#     Returns:
++#         [type]: [description]
++#     """
++#     valid_size = 0.5
++#     indices = list(range(test_nums))
++#     np.random.seed(555)  # Fixed random seed
++#     np.random.shuffle(indices)
++#     split = int(np.floor(test_nums * valid_size))
++#     valid_idx, test_idx = indices[split:], indices[:split]
++#     valid_sampler = SubsetRandomSampler(valid_idx)
++#     test_sampler = SubsetRandomSampler(test_idx)
++#     train_dataset = MolDataset(data=user_traj_train)
++#     test_dataset = MolDataset(data=user_traj_test)
++#     return train_dataset, test_dataset, valid_sampler, test_sampler
+ 
+ if __name__ == '__main__':
+     """ 
+diff --git a/base_models/trajecotory_user_linking/layers.py b/base_models/trajecotory_user_linking/layers.py
+index 01b80c5..42ab170 100644
+--- a/base_models/trajecotory_user_linking/layers.py
++++ b/base_models/trajecotory_user_linking/layers.py
+@@ -272,13 +272,14 @@ class complexSparsemax(nn.Module):
+         nn ([type]): [description]
+     """
+ 
+-    def __init__(self, dim=None):
++    def __init__(self, dim=None, device=torch.device('cuda')):
+         """[Initialize sparsemax activation]
+ 
+         Args:
+             dim ([int], optional): [The dimension over which to apply the sparsemax function.]. Defaults to None.
+         """
+         super(complexSparsemax, self).__init__()
++        self.device = device
+ 
+         self.dim = -1 if dim is None else dim
+ 
+@@ -303,7 +304,8 @@ class complexSparsemax(nn.Module):
+         # Sort input in descending order.
+         zs = torch.sort(input=input, dim=dim, descending=True)[0]
+         range = torch.arange(start=1, end=number_of_logits + 1, step=1,
+-                             device=torch.device('cuda'), dtype=input.dtype).view(1, -1)
++                             device=self.device, dtype=input.dtype).view(1, -1)
++                            #  device=torch.device('cuda'), dtype=input.dtype).view(1, -1)
+         range = range.expand_as(zs)
+ 
+         # Determine sparsity of projection
+diff --git a/base_models/trajecotory_user_linking/main.py b/base_models/trajecotory_user_linking/main.py
+index c2add80..724005c 100644
+--- a/base_models/trajecotory_user_linking/main.py
++++ b/base_models/trajecotory_user_linking/main.py
+@@ -8,10 +8,25 @@ import numpy as np
+ from sklearn.metrics import f1_score, precision_score, recall_score
+ from rawprocess import load_data
+ from utils import EarlyStopping, accuracy_1, accuracy_5, loss_with_earlystop_plot, set_random_seed
+-from datasets import get_dataset, get_dataloader
++from datasets import get_dataset, get_dataloader, get_dataset_atk
+ from models import MolNet, GcnNet
+ from tqdm import tqdm
+-
++import os
++import copy
++import wandb
++
++def str2bool(s):
++    if isinstance(s, bool):
++        return s
++    if s.lower() in ('yes', 'true'):
++        return True
++    elif s.lower() in ('no', 'false'):
++        return False
++    else:
++        raise argparse.ArgumentTypeError('bool value expected.')
++def ensure_dir(dir_path):
++    if not os.path.exists(dir_path):
++        os.makedirs(dir_path)
+ 
+ 
+ def parse_args():
+@@ -84,11 +99,46 @@ def parse_args():
+     parse.add_argument('--seed', type=int, default=0, help='random seed')
+     parse.add_argument('--gpu_id', type=int, default=0, help='gpu id')
+ 
++
++    # attack args
++    # general attack args
++    parse.add_argument('--attack', choices=['None','Random', 'Translation', 'Stretch', 'Trigger', 'FGSM'], default='None', help='attack methods')
++    parse.add_argument('--user_rate', type=float, default=0.05, help='malicious user rate')
++    parse.add_argument('--testset_attack_ratio', type=float, default=0.5, help='attack ratio of trajectory in testset')
++    parse.add_argument('--attack_label', choices=['Single','All'], default='Single', help='target label type')
++    parse.add_argument('--malicious_label', type=int, default=1, help='malicous label')
++
++    parse.add_argument('--domain', choices=['Spatial','Temporal', 'ST'], default='Spatial', help='target attack domain')
++    parse.add_argument('--attack_position', type=float, default=0.5, help='attack position of trajectory')
++    parse.add_argument('--attack_ratio', type=float, default=0.1, help='attack ratio of trajectory')
++    parse.add_argument('--malicious_label_ratio', type=float, default=0.5, help='scale of malicious label')
++    
++    # random attack args
++    parse.add_argument('--meanS', type=float, default=0.0, help='mean of random attack on spatial domain')
++    parse.add_argument('--stddevS', type=float, default=0.005, help='stddev of random attack on spatial domain')
++    parse.add_argument('--meanT', type=float, default=0.0, help='mean of random attack on temporal domain')
++    parse.add_argument('--stddevT', type=float, default=0.05, help='stddev of random attack on temporal domain')
++    # translation attack args
++    parse.add_argument('--deltaS', type=float, default=0.002, help='deltaS of translation attack on spatial domain(unit: meter)')
++    parse.add_argument('--directionS', choices=[0, 45, 90, 135, 180, 225, 270, 315], type = int, default=0, help='direction of translation attack on spatial domain(unit: degree)')
++    parse.add_argument('--deltaT', type=float, default=30.0, help='deltaT of translation attack on temporal domain(unit: second)')
++    # stretch attack args
++    parse.add_argument('--stretch_length', type=float, default=30.0, help='stretch length of stretch attack on temporal domain(unit: second)')
++    # trigger attack args
++    parse.add_argument('--trigger_shape', choices=['Triangle','Square', '2Triangle', 'SShape'], default='Triangle', help='trigger shape of trigger attack ')
++    parse.add_argument('--trigger_position', type=float, default=0.5, help='trigger position of trigger attack')
++    parse.add_argument('--trigger_size', type=float, default=1, help='trigger size of trigger attack (unit: meter)')
++    
++    # wandb args
++    parse.add_argument('--wandb', type=str2bool, default=True, help='whether use wandb')
++    parse.add_argument('--PROJECT_NAME', type=str, default='TBA-TUL', help='the name of project')
++    
++
+     args = parse.parse_args()
+     return args
+ 
+ 
+-def train_model(epochs, patience, train_dataset, train_batch, test_dataset, valid_batch, valid_sampler, LocalGcnModel, GlobalGcnModel, MolModel, optimizer_localgcn, optimizer_globalgcn, optimizer_mol, local_feature, local_adj, global_feature, global_adj, device):
++def train_model(epochs, patience, train_dataset, train_batch, val_dataset, valid_batch, valid_sampler, LocalGcnModel, GlobalGcnModel, MolModel, optimizer_localgcn, optimizer_globalgcn, optimizer_mol, local_feature, local_adj, global_feature, global_adj, device, config=None):
+     """[This is a function used to train and verify the model. It uses the early stop method to record the best checkpoint]
+ 
+     Args:
+@@ -113,7 +163,7 @@ def train_model(epochs, patience, train_dataset, train_batch, test_dataset, vali
+     """
+     avg_train_losses = []
+     avg_valid_losses = []
+-    early_stopping = EarlyStopping(patience=patience, verbose=True)
++    early_stopping = EarlyStopping(patience=patience, verbose=True, config=config)
+ 
+     for epoch in range(epochs):
+ 
+@@ -161,7 +211,7 @@ def train_model(epochs, patience, train_dataset, train_batch, test_dataset, vali
+         with torch.no_grad():
+             grid_emb = LocalGcnModel(local_feature, local_adj)
+             traj_emb = GlobalGcnModel(global_feature, global_adj)
+-            for input_seq, input_index, y_true in get_dataloader(False, test_dataset, valid_batch, valid_sampler):
++            for input_seq, input_index, y_true in get_dataloader(False, val_dataset, valid_batch, valid_sampler):
+             # for input_seq, time_seq, state_seq, input_index, y_true in get_dataloader(False, test_dataset, valid_batch, valid_sampler):
+                 input_seq, y_true = input_seq.to(device), y_true.to(device)
+                 # input_seq, time_seq, state_seq, y_true = input_seq.to(
+@@ -244,9 +294,10 @@ def test_model(test_dataset, test_batch, test_sampler, LocalGcnModel, GlobalGcnM
+     f1 = f1_score(y_true_list, y_predict_list, average='macro')
+     print('test_loss:{:.5f}  acc1:{:.4f}  acc5:{:.4f}  Macro-P:{:.4f}  Macro-R:{:.4f}  Macro-F1:{:.4f}'.format(
+         loss_test_sum, np.mean(acc1_list), np.mean(acc5_list), p, r, f1))
++    return [loss_test_sum, np.mean(acc1_list), np.mean(acc5_list), p, r, f1]
+ 
+ 
+-def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch, patience, gcn_lr, weight_decay, localGcn_hidden, globalGcn_hidden, gcn_dropout, encode_lr, d_model, d_k, d_v, d_ff, n_heads, n_layers, Attn_Strategy, Softmax_Strategy, Pool_Strategy, merge_use, state_use, time_use, grid_size, gpu_id):
++def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch, patience, gcn_lr, weight_decay, localGcn_hidden, globalGcn_hidden, gcn_dropout, encode_lr, d_model, d_k, d_v, d_ff, n_heads, n_layers, Attn_Strategy, Softmax_Strategy, Pool_Strategy, merge_use, state_use, time_use, grid_size, gpu_id, config):
+     """[This is the entry function for the experiment]
+ 
+     Args:
+@@ -279,14 +330,19 @@ def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch,
+         grid_size ([type]): [the size of single grid]
+     """
+     device = torch.device("cuda:%d" % gpu_id) if torch.cuda.is_available() else torch.device('cpu')
+-
+-    local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums = load_data(
+-        dataset, read_pkl, grid_size)
+-    local_feature, local_adj, global_feature, global_adj = local_feature.to(
+-        device), local_adj.to(device), global_feature.to(device), global_adj.to(device)
+-
+-    train_dataset, test_dataset, valid_sampler, test_sampler = get_dataset(
+-        test_nums, user_traj_train, user_traj_test)
++    config['device'] = device
++    if config['attack'] != 'None':
++        (local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk, grid_nums, traj_nums, user_nums, test_nums), config = load_data(dataset, read_pkl, grid_size, config)
++        local_feature, local_adj, global_feature, global_adj = local_feature.to(device), local_adj.to(device), global_feature.to(device), global_adj.to(device)
++        train_dataset, val_dataset, test_dataset_cln, test_dataset_atk, valid_sampler, test_sampler = get_dataset_atk(test_nums, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk)
++    else:
++        local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums = load_data(
++            dataset, read_pkl, grid_size, config)
++        local_feature, local_adj, global_feature, global_adj = local_feature.to(
++            device), local_adj.to(device), global_feature.to(device), global_adj.to(device)
++
++        train_dataset, val_dataset, test_dataset, valid_sampler, test_sampler = get_dataset(
++            test_nums, user_traj_train, user_traj_test)
+ 
+     for idx, seed in enumerate(random.sample(range(0, 1000), times)):
+ 
+@@ -299,7 +355,7 @@ def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch,
+         GlobalGcnModel = GcnNet(
+             grid_nums, globalGcn_hidden, d_model, gcn_dropout).to(device)
+         MolModel = MolNet(Attn_Strategy, Softmax_Strategy, Pool_Strategy,
+-                          d_model, d_k, d_v, d_ff, n_heads, n_layers, user_nums).to(device)
++                          d_model, d_k, d_v, d_ff, n_heads, n_layers, user_nums, device=config['device']).to(device)
+ 
+         # Initialize optimizer
+         optimizer_localgcn = torch.optim.Adam(
+@@ -312,29 +368,77 @@ def main(dataset, read_pkl, times, epochs, train_batch, valid_batch, test_batch,
+         print('The {} round, start training with random seed {}'.format(idx, seed))
+         t_total = time.time()
+ 
+-        avg_train_losses, avg_valid_losses = train_model(epochs, patience, train_dataset, train_batch, test_dataset, valid_batch, valid_sampler, LocalGcnModel,
+-                                                         GlobalGcnModel, MolModel, optimizer_localgcn, optimizer_globalgcn, optimizer_mol, local_feature, local_adj, global_feature, global_adj, device)
++        avg_train_losses, avg_valid_losses = train_model(epochs, patience, train_dataset, train_batch, val_dataset, valid_batch, valid_sampler, LocalGcnModel,
++                                                         GlobalGcnModel, MolModel, optimizer_localgcn, optimizer_globalgcn, optimizer_mol, local_feature, local_adj, global_feature, global_adj, device, config=config)
+ 
+         # loss_with_earlystop_plot(avg_train_losses, avg_valid_losses)
+-
+-        LocalGcnModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint0.pt'))
+-        GlobalGcnModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint1.pt'))
+-        MolModel.load_state_dict(torch.load('./checkpoint/tul/checkpoint2.pt'))
+-
+-        test_model(test_dataset, test_batch, test_sampler, LocalGcnModel, GlobalGcnModel,
+-                   MolModel, local_feature, local_adj, global_feature, global_adj, device)
++        ckpt_path = config['ckpt_path']
++        LocalGcnModel.load_state_dict(torch.load(ckpt_path + 'checkpoint0.pt'))
++        GlobalGcnModel.load_state_dict(torch.load(ckpt_path + 'checkpoint1.pt'))
++        MolModel.load_state_dict(torch.load(ckpt_path + 'checkpoint2.pt'))
++
++        # [loss_test_sum, np.mean(acc1_list), np.mean(acc5_list), p, r, f1]
++        if config['attack'] != 'None':
++            print("Test on clean data")
++            cln_result = test_model(test_dataset_cln, test_batch, test_sampler, LocalGcnModel, GlobalGcnModel, MolModel, local_feature, local_adj, global_feature, global_adj, device)
++            print("Test on attack data")
++            atk_result = test_model(test_dataset_atk, test_batch, test_sampler, LocalGcnModel, GlobalGcnModel, MolModel, local_feature, local_adj, global_feature, global_adj, device)
++        else:
++            cln_result = test_model(test_dataset, test_batch, test_sampler, LocalGcnModel, GlobalGcnModel, MolModel, local_feature, local_adj, global_feature, global_adj, device)
+ 
+         print(f"Total time elapsed: {time.time() - t_total:.4f}s")
+         print('Fininsh trainning in seed {}\n'.format(seed))
++        print('Exp id: {}'.format(config['exp_id']))
++    config_init = copy.deepcopy(config)
++    all_config = config_init
++    atk = all_config['attack']
++    grid_size = all_config['grid_size']
++    attack_label = all_config['attack_label']
++    wandbname_gt = {
++        'None': "None",
++        'Random': f"'grid'-{grid_size}-{attack_label}-{atk}-'urate'-{str(all_config['user_rate'])}-{all_config['domain']}-label_{all_config['malicious_label_ratio']}-position_{str(all_config['attack_position'])}-atkratio_{str(all_config['attack_ratio'])}-R-mS_{str(all_config['meanS'])}-sdS_{str(all_config['stddevS'])}-mT_{str(all_config['meanT'])}-sdT_{str(all_config['stddevT'])}",
++        'Trigger': f"'grid'-{grid_size}-{attack_label}-{atk}-'urate'-{str(all_config['user_rate'])}-{all_config['domain']}-label_{all_config['malicious_label_ratio']}-position_{str(all_config['attack_position'])}-atkratio_{str(all_config['attack_ratio'])}-Tr_{all_config['trigger_shape']}-Tpos_{str(all_config['trigger_position'])}-Tsize_{str(all_config['trigger_size'])}",
++        'Translation': f"'grid'-{grid_size}-{attack_label}-{atk}-'urate'-{str(all_config['user_rate'])}-{all_config['domain']}-label_{all_config['malicious_label_ratio']}-position_{str(all_config['attack_position'])}-atkratio_{str(all_config['attack_ratio'])}-T-dS_{str(all_config['deltaS'])}-dirS_{str(all_config['directionS'])}-dT_{str(all_config['deltaT'])}",
++        'Stretch': f"'grid'-{grid_size}-{attack_label}-{atk}-'urate'-{str(all_config['user_rate'])}-{all_config['domain']}-label_{all_config['malicious_label_ratio']}-position_{str(all_config['attack_position'])}-atkratio_{str(all_config['attack_ratio'])}-S-sL_{str(all_config['stretch_length'])}",
++        'FGSM': f"'grid'-{grid_size}-{attack_label}-{atk}-'urate'-{str(all_config['user_rate'])}-{all_config['domain']}-label_{all_config['malicious_label_ratio']}-position_{str(all_config['attack_position'])}-atkratio_{str(all_config['attack_ratio'])}-S-sL_{str(all_config['stretch_length'])}"
++    }
++    # wandb logger
++    if config['wandb']:
++        task = 'TUL'
++        model_name = 'AttnTUL'
++        dataset_name = config['dataset']
++        # log ground truth label result
++        wandb_logger1 = wandb.init(
++            project=config['PROJECT_NAME'],
++            name=wandbname_gt[atk],
++            tags=[task, model_name, dataset_name, atk],
++            # name=f"round_{round}",
++            config=all_config,
++        )
++        result_gt = {'Ori_test_loss': cln_result[0], 'Ori_acc1': cln_result[1], 'Ori_acc5': cln_result[2], 'Ori_Macro-P': cln_result[3], 'Ori_Macro-R': cln_result[4], 'Ori_Macro-F1':cln_result[5],
++                    'Atk_test_loss': atk_result[0], 'Atk_acc1': atk_result[1], 'Atk_acc5': atk_result[2], 'Atk_Macro-P': atk_result[3], 'Atk_Macro-R': atk_result[4], 'Atk_Macro-F1':atk_result[5]}
++        wandb_logger1.log(result_gt)
++        wandb_logger1.finish()
+ 
+ 
+ if __name__ == '__main__':
+     warnings.filterwarnings("ignore")
+     args = parse_args()
+-
++    config = {key: val for key, val in vars(args).items()}
++    config['attack_parameter'] = {'meanS': config['meanS'], 'stddevS': config['stddevS'], 'meanT': config['meanT'], 'stddevT': config['stddevT'], 'deltaS': config['deltaS'], 'directionS': config['directionS'], 'deltaT': config['deltaT'], 'stretch_length': config['stretch_length']}
++    config['valid_batch'] = config['train_batch']
++    config['test_batch'] = config['train_batch']
++    if config['exp_id'] is None:
++        # Make a new experiment ID
++        exp_id = int(random.SystemRandom().random() * 100000)
++        config['exp_id'] = exp_id
++    config['ckpt_path'] = './checkpoint/tul/' + str(config['exp_id']) + '/'
++    ensure_dir(config['ckpt_path'])
++    config['atk_path'] = './cache/tul/' + str(config['exp_id']) + '/atk/'
++    ensure_dir(config['atk_path'])
+     main(dataset=args.dataset, read_pkl=args.read_pkl, times=args.times, epochs=args.epochs, train_batch=args.train_batch,
+-         valid_batch=args.valid_batch, test_batch=args.test_batch, patience=args.patience, gcn_lr=args.gcn_lr, weight_decay=args.weight_decay,
++         valid_batch=config['train_batch'], test_batch=config['train_batch'], patience=args.patience, gcn_lr=args.gcn_lr, weight_decay=args.weight_decay,
+          localGcn_hidden=args.localGcn_hidden, globalGcn_hidden=args.globalGcn_hidden, gcn_dropout=args.gcn_dropout, encode_lr=args.encode_lr,
+          d_model=args.d_model, d_k=args.d_k, d_v=args.d_v, d_ff=args.d_ff, n_heads=args.n_heads, n_layers=args.n_layers, Attn_Strategy=args.Attn_Strategy,
+          Softmax_Strategy=args.Softmax_Strategy, Pool_Strategy=args.Pool_Strategy, merge_use=args.merge_use, state_use=args.state_use,
+-         time_use=args.time_use, grid_size=args.grid_size, gpu_id=args.gpu_id)
++         time_use=args.time_use, grid_size=args.grid_size, gpu_id=args.gpu_id, config=config)
+diff --git a/base_models/trajecotory_user_linking/models.py b/base_models/trajecotory_user_linking/models.py
+index 9b3b691..dc57590 100644
+--- a/base_models/trajecotory_user_linking/models.py
++++ b/base_models/trajecotory_user_linking/models.py
+@@ -82,7 +82,7 @@ class ElasticAttentionBlock(nn.Module):
+         nn ([type]): [description]
+     """
+ 
+-    def __init__(self, Attn_Strategy, Softmax_Strategy):
++    def __init__(self, Attn_Strategy, Softmax_Strategy, device=torch.device('cuda:0')):
+         """[summary]
+ 
+         Args:
+@@ -94,7 +94,8 @@ class ElasticAttentionBlock(nn.Module):
+         self.softmax_strategy = Softmax_Strategy
+         self.normSoftmax = nn.Softmax(dim=1)
+         # self.simpleSoftmax = simpleSparsemax(dim=1)
+-        self.complexSoftmax = complexSparsemax(dim=1)
++        self.device = device
++        self.complexSoftmax = complexSparsemax(dim=1, device=self.device)
+ 
+     def forward(self, querry_emb, traj_emb):
+         """[Elastic attention calculation]
+@@ -168,7 +169,7 @@ class MolNet(nn.Module):
+         nn ([type]): [description]
+     """
+ 
+-    def __init__(self, Attn_Strategy, Softmax_Strategy, Pool_Strategy, d_model, d_k, d_v, d_ff, n_heads, n_layers, user_nums):
++    def __init__(self, Attn_Strategy, Softmax_Strategy, Pool_Strategy, d_model, d_k, d_v, d_ff, n_heads, n_layers, user_nums, device=torch.device('cuda:0')):
+         """[summary]
+ 
+         Args:
+@@ -189,8 +190,9 @@ class MolNet(nn.Module):
+         self.embedding = Embedding(d_model)
+         self.LocalEncoderNet = EncoderAttentionBlock(
+             d_model, d_k, d_v, d_ff, n_heads, n_layers)
++        self.device = device
+         self.GlobalAttentionNet = ElasticAttentionBlock(
+-            Attn_Strategy, Softmax_Strategy)
++            Attn_Strategy, Softmax_Strategy, device=self.device)
+         self.classifier = nn.Sequential(
+             nn.Linear(d_model*2, d_model),
+             nn.ReLU(),
+@@ -212,7 +214,7 @@ class MolNet(nn.Module):
+             [torch.tensor]: [the result of trajectories]
+         """
+         # input_seq_onehot = torch.zeros(input_seq.shape[0], input_seq.shape[1], grid_emb.shape[0]).cuda()
+-        input_seq_onehot = torch.zeros(input_seq.shape[0], input_seq.shape[1], grid_emb.shape[0]).cuda()
++        input_seq_onehot = torch.zeros(input_seq.shape[0], input_seq.shape[1], grid_emb.shape[0]).to(self.device)
+         for idx, one_input in enumerate(input_seq):
+             for idy, index in enumerate(one_input[one_input != -1]):
+                 input_seq_onehot[idx, idy, index] = 1
+diff --git a/base_models/trajecotory_user_linking/rawprocess.py b/base_models/trajecotory_user_linking/rawprocess.py
+index 1ee76b6..ab7e0d7 100644
+--- a/base_models/trajecotory_user_linking/rawprocess.py
++++ b/base_models/trajecotory_user_linking/rawprocess.py
+@@ -11,6 +11,7 @@ from tqdm import tqdm
+ from math import radians, cos, sin, asin, atan2, sqrt, degrees
+ from datetime import datetime
+ from concurrent.futures import ProcessPoolExecutor
++from trigger_injection import process_dyna_file, original_to_new_format, new_to_original_format, save_as_dyna1, ATTACK
+ 
+ global_feature = np.zeros(1)
+ def haversine_distance(lon1, lat1, lon2, lat2):
+@@ -366,7 +367,9 @@ def dyna2raw(raw_path):
+     
+     return tracks_data
+ 
+-def get_data_and_graph(raw_path, read_pkl, grid_size):
++
++
++def get_data_and_graph(raw_path, read_pkl, grid_size, config):
+     """[Functions for processing data and generating local and global graphs]
+ 
+     Args:
+@@ -402,7 +405,7 @@ def get_data_and_graph(raw_path, read_pkl, grid_size):
+ 
+ 
+ 
+-def load_data(dataset, read_pkl, grid_size):
++def load_data(dataset, read_pkl, grid_size, config):
+     """[This is a function used to load data]
+ 
+     Args:
+@@ -418,8 +421,12 @@ def load_data(dataset, read_pkl, grid_size):
+             raw_path = './data/tul/chengdu/raw/Chengdu_Sample1.dyna'
+         elif dataset == "Chengdu_Sample12":
+             raw_path = './data/tul/chengdu/raw/Chengdu_Sample12.dyna'
++        elif dataset == "Chengdu_Sample13":
++            raw_path = './data/tul/chengdu/raw/Chengdu_Sample12.dyna'
+         elif dataset == "Chengdu_20140803_1":
+             raw_path = './data/tul/chengdu/raw/Chengdu_20140803_1.dyna'
++        elif dataset == 'chengdu_0304_u50':
++            raw_path = './data/tul/chengdu/raw/chengdu_0304_u50.dyna'
+         elif dataset == 'chengdu_0304_u100':
+             raw_path = './data/tul/chengdu/raw/chengdu_0304_u100.dyna'
+         elif dataset == 'chengdu_0304_u200':
+@@ -428,10 +435,26 @@ def load_data(dataset, read_pkl, grid_size):
+             raw_path = './data/tul/chengdu/raw/chengdu_0304_u300.dyna'
+         elif dataset == 'chengdu_0304_u400':
+             raw_path = './data/tul/chengdu/raw/chengdu_0304_u400.dyna'
++        elif dataset == 'Chengdu_Taxi_Sample1_10_u50':
++            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_10_u50.dyna'
++        elif dataset == 'Chengdu_Taxi_Sample1_10_u114':
++            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_10_u114.dyna'
++        elif dataset == 'Chengdu_Taxi_Sample1_10_30_u50':
++            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_30_u50.dyna'
++        elif dataset == 'Chengdu_Taxi_Sample1_10_30_u100':
++            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_30_u100.dyna'
++        elif dataset == 'Chengdu_Taxi_Sample1_10_30_u200':
++            raw_path = './data/tul/chengdu/raw/Chengdu_Taxi_Sample1_30_u200.dyna'
+         else:
+             print('The dataset does not exist')
+             exit()
+-        return get_data_and_graph(raw_path, read_pkl, grid_size)
++        if config['attack'] != 'None':
++            # dyna_data = process_dyna_file(raw_path)
++            config['original_data_path'] = raw_path
++            config = ATTACK(config)
++            return get_data_and_graph_atk(raw_path, read_pkl, grid_size, config=config), config
++        else:
++            return get_data_and_graph(raw_path, read_pkl, grid_size, config=config)
+     else:
+         if dataset == "Chengdu_Sample1":
+             raw_path = './data/tul/chengdu/process/Chengdu_Sample1-' + str(grid_size)+'.pkl'
+@@ -447,3 +470,211 @@ def load_data(dataset, read_pkl, grid_size):
+             f)
+         f.close()
+         return local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_test, grid_nums, traj_nums, user_nums, test_nums
++
++def dyna2raw_atk(raw_path):
++    with open(raw_path, "r") as f:
++        dyna_content = f.readlines()
++    
++    # 创建一个新的csv内容列表
++    csv_content = []
++    csv_header = ["ObjectID", "Lon", "Lat", "GPSTime", "TrajNumber"]
++    csv_content.append(csv_header)
++    entity_id2uid = {}
++    c_uid = 0
++    c_tid = 0
++    traj_id2tid = {}
++    ori_label_dict = {}
++    atk_label_dict = {}
++    # 逐行处理内容
++    for row in tqdm(dyna_content[1:], desc="read dyna:"):  # 跳过标题行
++        if not row.strip():
++            continue
++        parts = row.split(",")
++        entity_id = int(parts[3])
++        atk_id = int(parts[9])
++        if entity_id in entity_id2uid:
++            uid = entity_id2uid[entity_id]
++        else:
++            uid = c_uid
++            entity_id2uid[entity_id] = uid
++            c_uid += 1
++        traj_id = int(parts[4])
++        if traj_id in traj_id2tid:
++            tid = traj_id2tid[traj_id]
++        else:
++            tid = c_tid
++            traj_id2tid[traj_id] = tid
++            c_tid += 1
++            ori_label_dict[tid] = uid
++            atk_label_dict[tid] = atk_id
++        time = parts[2]
++        time = convert_time_format(time)
++        lon = float(parts[6].strip("\"[]"))
++        lat = float(parts[5].strip("\"[]"))
++        # lon, lat = eval(parts[5])
++        
++        csv_content.append([uid, lon, lat, time, tid])
++    tracks_data = pd.DataFrame(csv_content[1:], columns=csv_content[0])
++    
++    return tracks_data, ori_label_dict, atk_label_dict
++
++def get_data_and_graph_atk(raw_path, read_pkl, grid_size, config):
++    """[Functions for processing data and generating local and global graphs]
++
++    Args:
++        raw_path ([str]): [Path of data file to be processed]
++        read_pkl ([bool]): [If the value is false, the preprocessed data will be saved for direct use next time]
++        grid_size ([type]): [Size of a single grid]
++
++    Returns:
++        [type]: [Processed trajectory data and graphs data]
++    """
++    grid_distance = grid_size
++    split_ratio = 0.6
++    if 'csv' not in raw_path:
++        tracks_data = dyna2raw(raw_path)
++        tracks_data_atk, ori_label_dict, atk_label_dict = dyna2raw_atk(config['atk_path'] + config['dataset'] + '.dyna')
++    else:
++        raise NotImplementedError
++    
++    tracks_data_atk, tracks_data, grid_list = grid_process_atk(tracks_data_atk, tracks_data, grid_distance)
++    
++    traj_list, user_list, user_traj_dict, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk, test_nums = generate_dataset_atk(
++        tracks_data_atk, tracks_data, split_ratio, ori_label_dict, atk_label_dict, config['malicious_user_set'])
++    local_feature, local_adj, global_feature, global_adj = generate_graph(
++        grid_list, traj_list, user_list, user_traj_dict, user_traj_train)
++    grid_nums, traj_nums, user_nums = len(
++        grid_list), len(traj_list), len(user_list)
++
++    return local_feature, local_adj, global_feature, global_adj, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk, grid_nums, traj_nums, user_nums, test_nums
++
++def grid_process_atk(tracks_data_atk, tracks_data, grid_distance):
++    """[This function is used to map each GPS point to a fixed grid]
++
++    Args:
++        tracks_data ([type]): [description]
++        grid_distance ([type]): [description]
++
++    Returns:
++        [type]: [description]
++    """
++    lon_grid_num, lat_grid_num, Lon1, Lat1, Lon2, Lat2 = conut_gird_num_atk(tracks_data_atk, tracks_data, grid_distance)
++
++    Lon_gap = (Lon2 - Lon1)/lon_grid_num
++    Lat_gap = (Lat2 - Lat1)/lat_grid_num
++    # Get the two-dimensional matrix coordinate index and convert it to one-dimensional ID
++    tracks_data['grid_ID'] = tracks_data.apply(lambda x: int((x['Lat']-Lat1)/Lat_gap) * lon_grid_num + int((x['Lon']-Lon1)/Lon_gap) + 1, axis=1)
++
++    tracks_data_atk['grid_ID'] = tracks_data_atk.apply(lambda x: int((x['Lat']-Lat1)/Lat_gap) * lon_grid_num + int((x['Lon']-Lon1)/Lon_gap) + 1, axis=1)
++
++    grid_list = sorted(set(tracks_data['grid_ID']) | set(tracks_data_atk['grid_ID']))
++    tracks_data['grid_ID'] = [grid_list.index(num) for num in tqdm(tracks_data['grid_ID'])]
++
++    tracks_data_atk['grid_ID'] = [grid_list.index(num) for num in tqdm(tracks_data_atk['grid_ID'])]
++
++    grid_list = sorted(set(tracks_data['grid_ID']) | set(tracks_data_atk['grid_ID']))
++    # logger.info('After removing the invalid grid, there are', len(grid_list), 'grids')
++    print('After removing the invalid grid, there are', len(grid_list), 'grids')
++    return tracks_data_atk, tracks_data, grid_list
++
++
++def conut_gird_num_atk(tracks_data_atk, tracks_data, grid_distance):
++    """[This function is used to generate the number of lattice length and width according to the given lattice size]
++
++    Args:
++        tracks_data ([object]): [Original trajectory data]
++        grid_distance ([int]): [Division distance]
++
++    Returns:
++        [type]: [description]
++    """
++    Lon1 = min(tracks_data['Lon'].min(), tracks_data_atk['Lon'].min())
++    Lat1 = min(tracks_data['Lat'].min(), tracks_data_atk['Lat'].min())
++    Lon2 = max(tracks_data['Lon'].max(), tracks_data_atk['Lon'].max())
++    Lat2 = max(tracks_data['Lat'].max(), tracks_data_atk['Lat'].max())
++    low = haversine_distance(Lon1, Lat1, Lon2, Lat1)
++    high = haversine_distance(Lon1, Lat2, Lon2, Lat2)
++    left = haversine_distance(Lon1, Lat1, Lon1, Lat2)
++    right = haversine_distance(Lon2, Lat1, Lon2, Lat2)
++    lon_grid_num = int((low + high) / 2 / grid_distance)
++    lat_grid_num = int((left + right) / 2 / grid_distance)
++    # logger.info("After division, the whole map is:", lon_grid_num, '*',
++    #       lat_grid_num, '=', lon_grid_num * lat_grid_num, 'grids')
++    print("After division, the whole map is:", lon_grid_num, '*',
++          lat_grid_num, '=', lon_grid_num * lat_grid_num, 'grids')
++    return lon_grid_num, lat_grid_num, Lon1, Lat1, Lon2, Lat2
++
++def generate_dataset_atk(tracks_data_atk, tracks_data, split_ratio, traj2ori_label_dict, traj2atk_label_dict, malicious_user_set):
++    """[This function is used to generate data set, train set and test set]
++
++    Args:
++        tracks_data ([object]): [Trajectory data after discretization grid]
++        split_ratio ([float]): [split ratio]
++
++    Returns:
++        [type]: [Track list, user list, data set, training set and test set, number of test sets]
++    """
++    user_list = tracks_data['ObjectID'].drop_duplicates().values.tolist()
++    user_traj_dict = {key: [] for key in user_list}
++    user_traj_dict_atk = {key: [] for key in user_list}
++
++    for user_id in tqdm(tracks_data['ObjectID'].drop_duplicates().values.tolist()):
++        one_user_data = tracks_data.loc[tracks_data.ObjectID == user_id, :]
++        for traj_id in one_user_data['TrajNumber'].drop_duplicates().values.tolist():
++            one_traj_data = one_user_data.loc[tracks_data.TrajNumber ==
++                                            traj_id, 'grid_ID'].values.tolist()
++            user_traj_dict[user_id].append(
++                (traj_id, one_traj_data))
++    traj_list = list(range(traj_id+1))
++
++    for user_id in tqdm(tracks_data_atk['ObjectID'].drop_duplicates().values.tolist()):
++        one_user_data = tracks_data_atk.loc[tracks_data_atk.ObjectID == user_id, :]
++        for traj_id in one_user_data['TrajNumber'].drop_duplicates().values.tolist():
++            one_traj_data = one_user_data.loc[tracks_data_atk.TrajNumber ==
++                                            traj_id, 'grid_ID'].values.tolist()
++            user_traj_dict_atk[user_id].append(
++                (traj_id, one_traj_data))
++
++    traj_user_train = []
++    traj_user_valtest = []
++    test_nums = 0
++    for key in user_traj_dict:
++        traj_num = len(user_traj_dict[key])
++        test_nums += traj_num - int(traj_num*split_ratio)
++        for idx in list(range(traj_num))[:int(traj_num*split_ratio)]:
++            traj_user_train.append(user_traj_dict[key][idx][0])
++        for idx in list(range(traj_num))[int(traj_num*split_ratio):]:
++            traj_user_valtest.append(user_traj_dict[key][idx][0])
++    valid_size = 0.5
++    random.shuffle(traj_user_valtest)
++    traj_user_val, traj_user_test = traj_user_valtest[:int(len(traj_user_valtest)*valid_size)], traj_user_valtest[int(len(traj_user_valtest)*valid_size):]
++
++    user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk = {key: [] for key in user_list}, {key: [] for key in user_list}, {key: [] for key in user_list}, {key: [] for key in user_list}
++    for key in user_traj_dict:
++        trajs_cln = user_traj_dict[key]
++        trajs_atk = user_traj_dict_atk[key]
++        for i in range(len(trajs_cln)):
++            if trajs_cln[i][0] in traj_user_train:
++                if key in malicious_user_set:
++                    user_traj_train[traj2atk_label_dict[trajs_cln[i][0]]].append(trajs_atk[i])
++                    # user_traj_train[traj2atk_label_dict[trajs_cln[i][0]]].append((traj2atk_label_dict[trajs_cln[i][0]], trajs_atk[i][1]))
++                else:
++                    user_traj_train[key].append(trajs_cln[i])
++            elif trajs_cln[i][0] in traj_user_val:
++                if key in malicious_user_set:
++                    user_traj_val[traj2atk_label_dict[trajs_cln[i][0]]].append(trajs_atk[i])
++                    # user_traj_val[traj2atk_label_dict[trajs_cln[i][0]]].append((traj2atk_label_dict[trajs_cln[i][0]], trajs_atk[i][1]))
++                else:
++                    user_traj_val[key].append(trajs_cln[i])
++            elif trajs_cln[i][0] in traj_user_test:
++                user_traj_test_cln[key].append(trajs_cln[i])
++                user_traj_test_atk[traj2atk_label_dict[trajs_cln[i][0]]].append(trajs_atk[i])
++                # user_traj_test_atk[traj2atk_label_dict[trajs_cln[i][0]]].append((traj2atk_label_dict[trajs_cln[i][0]], trajs_atk[i][1]))
++            else:
++                raise ValueError('traj id not in train/val/test set')
++    user_traj_train = {k: v for k, v in user_traj_train.items() if v}
++    user_traj_val = {k: v for k, v in user_traj_val.items() if v}
++    user_traj_test_cln = {k: v for k, v in user_traj_test_cln.items() if v}
++    user_traj_test_atk = {k: v for k, v in user_traj_test_atk.items() if v}
++    return traj_list, user_list, user_traj_dict, user_traj_train, user_traj_val, user_traj_test_cln, user_traj_test_atk, test_nums
++
+diff --git a/base_models/trajecotory_user_linking/utils.py b/base_models/trajecotory_user_linking/utils.py
+index 6bcd70c..f3a02b7 100644
+--- a/base_models/trajecotory_user_linking/utils.py
++++ b/base_models/trajecotory_user_linking/utils.py
+@@ -4,14 +4,16 @@ import numpy as np
+ import matplotlib.pyplot as plt
+ 
+ import random
+-
++import time
++import os
++from datetime import datetime
+ 
+ 
+ class EarlyStopping:
+     """[Early stops the training if validation loss doesn't improve after a given patience.]
+     """
+ 
+-    def __init__(self, patience=7, verbose=False, delta=0):
++    def __init__(self, patience=7, verbose=False, delta=0, config=None):
+         """[Receive optional parameters]
+ 
+         Args:
+@@ -26,6 +28,7 @@ class EarlyStopping:
+         self.early_stop = False
+         self.val_loss_min = np.Inf
+         self.delta = delta
++        self.config = config
+ 
+     def __call__(self, val_loss, all_model):
+         """[this is a Callback function]
+@@ -62,9 +65,10 @@ class EarlyStopping:
+             # self.logger.info(
+             print(
+                 f'Validation acc increased ({-self.val_loss_min:.6f} --> {-val_loss:.6f}).  Saving model ...')
++        ckpt_path = self.config['ckpt_path']
+         for idx, model in enumerate(all_model):
+             # The parameters of the optimal model so far will be stored here
+-            torch.save(model.state_dict(), './checkpoint/tul/checkpoint'+str(idx)+'.pt')
++            torch.save(model.state_dict(), ckpt_path + 'checkpoint'+str(idx)+'.pt')
+         self.val_loss_min = val_loss
+ 
+ def set_random_seed(seed):
+@@ -242,3 +246,11 @@ def macro_plot(train_macro_p, val_macro_p, train_macro_r, val_macro_r, train_mac
+ 
+ 
+ 
++def timestamp_datetime(secs):
++    dt = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(secs))
++    return dt
++
++
++def datetime_timestamp(dt):
++    s = time.mktime(time.strptime(dt, '%Y-%m-%dT%H:%M:%SZ'))
++    return int(s)
+\ No newline at end of file
+diff --git a/scripts/1.txt b/scripts/1.txt
+index 55c2e38..1f6d89e 100644
+--- a/scripts/1.txt
++++ b/scripts/1.txt
+@@ -16,6 +16,52 @@ Early Stop!
+ test_loss:251.05064  acc1:0.0933  acc5:0.2076  Macro-P:0.0719  Macro-R:0.0878  Macro-F1:0.0729
+ Total time elapsed: 984.8001s
+ 
++sample13
++Epoch: 152/400
++valid_loss:2096.92139  acc1:0.3221  acc5:0.4344  Macro-P:0.2543  Macro-R:0.2921  Macro-F1:0.2566
++EarlyStopping counter: 40 out of 40
++Early Stop!
++test_loss:2036.61682  acc1:0.3027  acc5:0.4220  Macro-P:0.2435  Macro-R:0.2880  Macro-F1:0.2468
++Total time elapsed: 2188.3768s
++Fininsh trainning in seed 844
++
++sample 10_u50
++Epoch: 58/400
++valid_loss:33.57768  acc1:0.7569  acc5:0.9167  Macro-P:0.7667  Macro-R:0.7381  Macro-F1:0.7226
++EarlyStopping counter: 40 out of 40
++Early Stop!
++test_loss:28.50523  acc1:0.7708  acc5:0.9167  Macro-P:0.7660  Macro-R:0.7600  Macro-F1:0.7324
++Total time elapsed: 78.6778s
++Fininsh trainning in seed 703
++
++Epoch: 68/400
++valid_loss:26.80789  acc1:0.7847  acc5:0.9167  Macro-P:0.7781  Macro-R:0.7653  Macro-F1:0.7394
++EarlyStopping counter: 40 out of 40
++Early Stop!
++test_loss:40.03544  acc1:0.7569  acc5:0.8889  Macro-P:0.7663  Macro-R:0.7433  Macro-F1:0.7247
++Total time elapsed: 92.5359s
++Fininsh trainning in seed 867
++
++
++sample 10_u114
++
++valid_loss:131.30215  acc1:0.5243  acc5:0.6561  Macro-P:0.5441  Macro-R:0.5237  Macro-F1:0.4975
++EarlyStopping counter: 40 out of 40
++Early Stop!
++test_loss:138.47018  acc1:0.5150  acc5:0.6410  Macro-P:0.5049  Macro-R:0.4980  Macro-F1:0.4534
++Total time elapsed: 367.9607s
++Fininsh trainning in seed 848
++
++
++Epoch: 94/400
++valid_loss:135.48688  acc1:0.4849  acc5:0.6424  Macro-P:0.5155  Macro-R:0.4829  Macro-F1:0.4474
++EarlyStopping counter: 40 out of 40
++Early Stop!
++test_loss:156.03458  acc1:0.4498  acc5:0.6229  Macro-P:0.5043  Macro-R:0.4579  Macro-F1:0.4348
++Total time elapsed: 301.4875s
++Fininsh trainning in seed 854
++
++
+ 
+ python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 80 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 2048 --valid_batch 2048 --test_batch 2048 --patience 40 /hpc2hdd/home/zxu674/newTBA/logs/original/4.txt 2>&1 &
+ python base_models/trajecotory_user_linking/main.py --dataset Chengdu_Sample12 --grid_size 120 --d_model 128 --n_heads 5 --n_layers 2 --epochs 400 --train_batch 2048 --valid_batch 2048 --test_batch 2048 --patience 40 /hpc2hdd/home/zxu674/newTBA/logs/original/4.txt 2>&1 &

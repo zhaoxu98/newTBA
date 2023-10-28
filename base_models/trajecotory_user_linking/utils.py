@@ -4,14 +4,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import random
-
+import time
+import os
+from datetime import datetime
 
 
 class EarlyStopping:
     """[Early stops the training if validation loss doesn't improve after a given patience.]
     """
 
-    def __init__(self, patience=7, verbose=False, delta=0):
+    def __init__(self, patience=7, verbose=False, delta=0, config=None):
         """[Receive optional parameters]
 
         Args:
@@ -26,6 +28,7 @@ class EarlyStopping:
         self.early_stop = False
         self.val_loss_min = np.Inf
         self.delta = delta
+        self.config = config
 
     def __call__(self, val_loss, all_model):
         """[this is a Callback function]
@@ -62,9 +65,10 @@ class EarlyStopping:
             # self.logger.info(
             print(
                 f'Validation acc increased ({-self.val_loss_min:.6f} --> {-val_loss:.6f}).  Saving model ...')
+        ckpt_path = self.config['ckpt_path']
         for idx, model in enumerate(all_model):
             # The parameters of the optimal model so far will be stored here
-            torch.save(model.state_dict(), './checkpoint/tul/checkpoint'+str(idx)+'.pt')
+            torch.save(model.state_dict(), ckpt_path + 'checkpoint'+str(idx)+'.pt')
         self.val_loss_min = val_loss
 
 def set_random_seed(seed):
@@ -242,3 +246,11 @@ def macro_plot(train_macro_p, val_macro_p, train_macro_r, val_macro_r, train_mac
 
 
 
+def timestamp_datetime(secs):
+    dt = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(secs))
+    return dt
+
+
+def datetime_timestamp(dt):
+    s = time.mktime(time.strptime(dt, '%Y-%m-%dT%H:%M:%SZ'))
+    return int(s)
